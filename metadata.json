@@ -1,0 +1,7 @@
+{
+  "name": "Copy of YouthLens AI",
+  "description": "A magic camera that instantly makes you look younger and slimmer using advanced Gemini AI.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
