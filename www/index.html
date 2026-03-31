@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#007AFF">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="拍照命名">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23007AFF' width='192' height='192'/><text x='50%' y='50%' font-size='100' fill='white' text-anchor='middle' dominant-baseline='central'>📸</text></svg>">
+  <title>拍照命名工具</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      max-width: 500px;
+      width: 100%;
+      padding: 30px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+      font-size: 24px;
+    }
+
+    .camera-section {
+      margin-bottom: 30px;
+    }
+
+    video, canvas {
+      width: 100%;
+      border-radius: 8px;
+      background: #000;
+      display: block;
+      margin-bottom: 15px;
+    }
+
+    canvas {
+      display: none;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: #007AFF;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #0051D5;
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .input-section {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #666;
+      font-weight: 500;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #007AFF;
+      box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+    }
+
+    .preview-section {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f9f9f9;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .preview-section.active {
+      display: block;
+    }
+
+    .preview-image {
+      width: 100%;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+
+    .preview-info {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    .gallery-section {
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 1px solid #eee;
+    }
+
+    .gallery-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 15px;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
+    }
+
+    .gallery-item {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f0f0f0;
+      aspect-ratio: 1;
+      cursor: pointer;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .gallery-item-name {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 5px;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .message {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: none;
+    }
+
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      display: block;
+    }
+
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      display: block;
+    }
+
+    .empty-gallery {
+      text-align: center;
+      color: #999;
+      padding: 20px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📸 拍照命名</h1>
+
+    <div id="message" class="message"></div>
+
+    <div class="camera-section">
+      <video id="video" playsinline autoplay></video>
+      <canvas id="canvas"></canvas>
+
+      <div class="button-group">
+        <button class="btn-primary" onclick="takePicture()">📷 拍照</button>
+        <button class="btn-secondary" onclick="toggleCamera()">🔄 切换摄像头</button>
+      </div>
+    </div>
+
+    <div class="preview-section" id="previewSection">
+      <img id="previewImage" class="preview-image" src="" alt="预览">
+      <div class="preview-info">
+        <strong>照片名称：</strong>
+        <input type="text" id="photoName" placeholder="输入照片名称，如：风景照_001" value="">
+      </div>
+      <div class="button-group">
+        <button class="btn-primary" onclick="savePicture()">✅ 保存</button>
+        <button class="btn-secondary" onclick="cancelPicture()">❌ 取消</button>
+      </div>
+    </div>
+
+    <div class="gallery-section">
+      <div class="gallery-title">📷 已保存的照片</div>
+      <div class="gallery" id="gallery">
+        <div class="empty-gallery">还没有保存任何照片</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let stream = null;
+    let currentPhotoData = null;
+    let photos = [];
+    let cameraIndex = 0;
+
+    // 初始化摄像头
+    async function initCamera() {
+      try {
+        const constraints = {
+          video: { facingMode: 'environment' },
+          audio: false
+        };
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const video = document.getElementById('video');
+        video.srcObject = stream;
+        showMessage('摄像头已启动', 'success');
+      } catch (error) {
+        showMessage('无法访问摄像头：' + error.message, 'error');
+      }
+    }
+
+    // 拍照
+    function takePicture() {
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+
+      currentPhotoData = canvas.toDataURL('image/jpeg');
+      document.getElementById('previewImage').src = currentPhotoData;
+      document.getElementById('previewSection').classList.add('active');
+      document.getElementById('photoName').focus();
+    }
+
+    // 保存照片
+    function savePicture() {
+      const name = document.getElementById('photoName').value.trim();
+      if (!name) {
+        showMessage('请输入照片名称', 'error');
+        return;
+      }
+
+      const timestamp = new Date().toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }).replace(/\//g, '-').replace(/:/g, '-');
+
+      const fileName = `${name}_${timestamp}.jpg`;
+
+      photos.unshift({
+        name: fileName,
+        data: currentPhotoData,
+        time: new Date()
+      });
+
+      // 保存到 localStorage
+      localStorage.setItem('photos', JSON.stringify(photos.map(p => ({
+        name: p.name,
+        data: p.data
+      }))));
+
+      showMessage(`✅ 已保存：${fileName}`, 'success');
+      cancelPicture();
+      updateGallery();
+    }
+
+    // 取消拍照
+    function cancelPicture() {
+      currentPhotoData = null;
+      document.getElementById('previewSection').classList.remove('active');
+      document.getElementById('photoName').value = '';
+    }
+
+    // 切换摄像头
+    async function toggleCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      cameraIndex = (cameraIndex + 1) % 2;
+      const constraints = {
+        video: { facingMode: cameraIndex === 0 ? 'environment' : 'user' },
+        audio: false
+      };
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const video = document.getElementById('video');
+        video.srcObject = stream;
+      } catch (error) {
+        showMessage('无法切换摄像头', 'error');
+      }
+    }
+
+    // 更新相册
+    function updateGallery() {
+      const gallery = document.getElementById('gallery');
+      if (photos.length === 0) {
+        gallery.innerHTML = '<div class="empty-gallery">还没有保存任何照片</div>';
+        return;
+      }
+
+      gallery.innerHTML = photos.map((photo, index) => `
+        <div class="gallery-item" onclick="downloadPhoto(${index})">
+          <img src="${photo.data}" alt="${photo.name}">
+          <div class="gallery-item-name">${photo.name}</div>
+        </div>
+      `).join('');
+    }
+
+    // 下载照片
+    function downloadPhoto(index) {
+      const photo = photos[index];
+      const link = document.createElement('a');
+      link.href = photo.data;
+      link.download = photo.name;
+      link.click();
+    }
+
+    // 显示消息
+    function showMessage(text, type) {
+      const msg = document.getElementById('message');
+      msg.textContent = text;
+      msg.className = `message ${type}`;
+      setTimeout(() => {
+        msg.className = 'message';
+      }, 3000);
+    }
+
+    // 加载已保存的照片
+    function loadPhotos() {
+      const saved = localStorage.getItem('photos');
+      if (saved) {
+        photos = JSON.parse(saved);
+        updateGallery();
+      }
+    }
+
+    // 页面加载时初始化
+    window.addEventListener('load', () => {
+      initCamera();
+      loadPhotos();
+      
+      // 注册 Service Worker（PWA 支持）
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
+      }
+    });
+
+    // 页面卸载时停止摄像头
+    window.addEventListener('beforeunload', () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    });
+  </script>
+</body>
+</html>
