@@ -10,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 
 <!-- Turf.js for spatial analysis -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
+<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
 <!-- JSZip for Shapefile handling -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -1510,69 +1510,78 @@ function activateTool(tool) {
   state.activeTool = tool;
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`btn-${tool}`)?.classList.add('active');
-  
+
   const params = document.getElementById('tool-params');
-  
+  if (!params) return;
+
+  const opts = getLayerOptions();
+
   if (tool === 'buffer') {
     params.innerHTML = `
-      <div class="field"><label>选择图层</label><select id="bufLayer">${getLayerOptions()}</select></div>
+      <div class="field"><label>选择图层</label><select id="bufLayer">${opts}</select></div>
       <div class="field"><label>缓冲区半径 (km)</label><input type="number" id="bufRadius" value="10" min="0.1" step="0.1"/></div>
       <button class="btn btn-primary btn-full" onclick="runBuffer()">▶ 执行缓冲区</button>
     `;
   } else if (tool === 'intersect') {
     params.innerHTML = `
-      <div class="field"><label>图层 A</label><select id="intLayerA">${getLayerOptions()}</select></div>
-      <div class="field"><label>图层 B</label><select id="intLayerB">${getLayerOptions()}</select></div>
+      <div class="field"><label>图层 A</label><select id="intLayerA">${opts}</select></div>
+      <div class="field"><label>图层 B</label><select id="intLayerB">${opts}</select></div>
       <button class="btn btn-primary btn-full" onclick="runIntersect()">▶ 执行相交</button>
     `;
   } else if (tool === 'union') {
     params.innerHTML = `
-      <div class="field"><label>选择图层</label><select id="unionLayer">${getLayerOptions()}</select></div>
+      <div class="field"><label>选择图层（含面要素）</label><select id="unionLayer">${opts}</select></div>
       <button class="btn btn-primary btn-full" onclick="runUnion()">▶ 执行合并</button>
     `;
   } else if (tool === 'centroid') {
     params.innerHTML = `
-      <div class="field"><label>选择图层</label><select id="centroidLayer">${getLayerOptions()}</select></div>
+      <div class="field"><label>选择图层</label><select id="centroidLayer">${opts}</select></div>
       <button class="btn btn-primary btn-full" onclick="runCentroid()">▶ 提取质心</button>
     `;
   } else if (tool === 'measure') {
     params.innerHTML = `
-      <p style="font-size:12px;color:var(--text-dim);line-height:1.6">在地图上点击两点测量距离，双击结束。<br>或使用工具栏 📏 按钮。</p>
+      <p style="font-size:12px;color:var(--text-dim);line-height:1.6">切换到地图工具栏，点击 📏 距离 按钮，在地图上依次点击测量点，双击结束。</p>
       <button class="btn btn-secondary btn-full" onclick="setMapMode('measure-dist'); switchPanel('map')">📏 进入测量模式</button>
     `;
   } else if (tool === 'area') {
     params.innerHTML = `
-      <div class="field"><label>选择图层（面要素）</label><select id="areaLayer">${getLayerOptions()}</select></div>
+      <div class="field"><label>选择图层（面要素）</label><select id="areaLayer">${opts}</select></div>
       <button class="btn btn-primary btn-full" onclick="runArea()">▶ 计算面积</button>
     `;
   }
 }
 
 function getLayerOptions() {
-  if (state.layers.length === 0) return '<option>无可用图层</option>';
-  return state.layers.map(l => `<option value="${l.id}">${l.name} (${l.count})</option>`).join('');
+  if (state.layers.length === 0) return '<option value="">无可用图层（请先加载数据）</option>';
+  return state.layers.map(l => `<option value="${l.id}">${l.name} (${l.count} 要素)</option>`).join('');
 }
 
 function getLayerById(id) {
-  return state.layers.find(l => l.id == id);
+  return state.layers.find(l => String(l.id) === String(id));
 }
 
 function runBuffer() {
   const layerId = document.getElementById('bufLayer')?.value;
   const radius = parseFloat(document.getElementById('bufRadius')?.value);
   const layer = getLayerById(layerId);
-  if (!layer || isNaN(radius)) { toast('请选择图层并输入有效半径', 'error'); return; }
-  
+  if (!layer) { toast('请先加载数据图层', 'error'); return; }
+  if (isNaN(radius) || radius <= 0) { toast('请输入有效的缓冲区半径', 'error'); return; }
+
   try {
     const buffered = turf.buffer(layer.geojson, radius, { units: 'kilometers' });
+    if (!buffered || !buffered.features || buffered.features.length === 0) {
+      toast('缓冲区生成为空，请检查数据', 'warn'); return;
+    }
     addLayer(buffered, `${layer.name}_缓冲${radius}km`, 'analysis');
-    log(`缓冲区分析完成: 半径 ${radius}km`, 'success');
-    showResults([{ label: '缓冲区半径', value: radius, unit: 'km' },
-      { label: '要素数量', value: buffered.features.length, unit: '' }]);
-    toast(`✅ 缓冲区已生成`);
+    log(`缓冲区分析完成: 半径 ${radius}km，${buffered.features.length} 个要素`, 'success');
+    showResults([
+      { label: '缓冲区半径', value: radius, unit: 'km' },
+      { label: '输出要素数', value: buffered.features.length, unit: '' }
+    ]);
+    toast('✅ 缓冲区已生成');
   } catch(e) {
     log(`缓冲区失败: ${e.message}`, 'error');
-    toast('缓冲区分析失败', 'error');
+    toast('缓冲区分析失败: ' + e.message, 'error');
   }
 }
 
@@ -1582,25 +1591,30 @@ function runIntersect() {
   const layerA = getLayerById(aId);
   const layerB = getLayerById(bId);
   if (!layerA || !layerB) { toast('请选择两个图层', 'error'); return; }
-  
+  if (aId === bId) { toast('请选择不同的两个图层', 'warn'); return; }
+
   try {
     const results = [];
     layerA.geojson.features.forEach(fa => {
+      if (!fa.geometry) return;
       layerB.geojson.features.forEach(fb => {
+        if (!fb.geometry) return;
         try {
-          const inter = turf.intersect(fa, fb);
+          // turf.intersect API: featureCollection in v6
+          const fc = turf.featureCollection([fa, fb]);
+          const inter = turf.intersect(fc);
           if (inter) results.push(inter);
         } catch(e) {}
       });
     });
-    if (results.length === 0) { toast('无相交区域', 'warn'); return; }
-    addLayer({ type:'FeatureCollection', features: results }, `相交_${layerA.name}_${layerB.name}`, 'analysis');
-    log(`相交分析完成: ${results.length} 个结果`, 'success');
+    if (results.length === 0) { toast('两图层无相交区域', 'warn'); log('相交分析: 无交叉结果', 'warn'); return; }
+    addLayer({ type:'FeatureCollection', features: results }, `相交_${layerA.name}∩${layerB.name}`, 'analysis');
+    log(`相交分析完成: ${results.length} 个相交区域`, 'success');
     showResults([{ label: '相交要素数', value: results.length, unit: '' }]);
-    toast(`✅ 相交分析完成`);
+    toast('✅ 相交分析完成');
   } catch(e) {
     log(`相交分析失败: ${e.message}`, 'error');
-    toast('相交分析失败', 'error');
+    toast('相交分析失败: ' + e.message, 'error');
   }
 }
 
@@ -1608,22 +1622,27 @@ function runUnion() {
   const layerId = document.getElementById('unionLayer')?.value;
   const layer = getLayerById(layerId);
   if (!layer) { toast('请选择图层', 'error'); return; }
-  
+
   try {
     const polys = layer.geojson.features.filter(f =>
-      f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon');
-    if (polys.length < 2) { toast('需要至少2个面要素', 'warn'); return; }
-    
+      f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'));
+    if (polys.length === 0) { toast('该图层没有面要素', 'warn'); return; }
+    if (polys.length === 1) {
+      addLayer({ type:'FeatureCollection', features: polys }, `合并_${layer.name}`, 'analysis');
+      toast('✅ 只有1个面要素，已直接输出');
+      return;
+    }
     let merged = polys[0];
     for (let i = 1; i < polys.length; i++) {
-      try { merged = turf.union(merged, polys[i]); } catch(e) {}
+      try { merged = turf.union(turf.featureCollection([merged, polys[i]])); } catch(e) {}
     }
     addLayer({ type:'FeatureCollection', features:[merged] }, `合并_${layer.name}`, 'analysis');
-    log('合并分析完成', 'success');
+    log(`合并分析完成: ${polys.length} 个面合并为1个`, 'success');
+    showResults([{ label: '合并前要素数', value: polys.length, unit: '' }, { label: '合并后要素数', value: 1, unit: '' }]);
     toast('✅ 合并完成');
   } catch(e) {
     log(`合并失败: ${e.message}`, 'error');
-    toast('合并失败', 'error');
+    toast('合并失败: ' + e.message, 'error');
   }
 }
 
@@ -1631,35 +1650,52 @@ function runCentroid() {
   const layerId = document.getElementById('centroidLayer')?.value;
   const layer = getLayerById(layerId);
   if (!layer) { toast('请选择图层', 'error'); return; }
-  
-  const centroids = layer.geojson.features.map(f => {
-    const c = turf.centroid(f);
-    c.properties = { ...f.properties };
-    return c;
-  });
-  addLayer({ type:'FeatureCollection', features: centroids }, `质心_${layer.name}`, 'analysis');
-  log(`质心提取完成: ${centroids.length} 个点`, 'success');
-  toast('✅ 质心提取完成');
+
+  try {
+    const centroids = layer.geojson.features
+      .filter(f => f.geometry)
+      .map(f => {
+        const c = turf.centroid(f);
+        c.properties = { ...f.properties, _source: layer.name };
+        return c;
+      });
+    if (centroids.length === 0) { toast('没有可提取质心的要素', 'warn'); return; }
+    addLayer({ type:'FeatureCollection', features: centroids }, `质心_${layer.name}`, 'analysis');
+    log(`质心提取完成: ${centroids.length} 个点`, 'success');
+    showResults([{ label: '提取质心数', value: centroids.length, unit: '' }]);
+    toast('✅ 质心提取完成');
+  } catch(e) {
+    log(`质心提取失败: ${e.message}`, 'error');
+    toast('质心提取失败: ' + e.message, 'error');
+  }
 }
 
 function runArea() {
   const layerId = document.getElementById('areaLayer')?.value;
   const layer = getLayerById(layerId);
   if (!layer) { toast('请选择图层', 'error'); return; }
-  
-  let totalArea = 0;
-  const results = [];
-  layer.geojson.features.forEach((f, i) => {
-    try {
-      const a = turf.area(f);
-      totalArea += a;
-      results.push({ label: `要素 ${i+1}`, value: formatArea(a), unit: '' });
-    } catch(e) {}
-  });
-  results.unshift({ label: '总面积', value: formatArea(totalArea), unit: '' });
-  showResults(results);
-  log(`面积计算完成: 总面积 ${formatArea(totalArea)}`, 'success');
-  toast('✅ 面积计算完成');
+
+  try {
+    let totalArea = 0;
+    const results = [];
+    layer.geojson.features.forEach((f, i) => {
+      if (!f.geometry) return;
+      try {
+        const a = turf.area(f);
+        totalArea += a;
+        const name = f.properties?.name || f.properties?.NAME || `要素 ${i+1}`;
+        results.push({ label: name, value: formatArea(a), unit: '' });
+      } catch(e) {}
+    });
+    if (results.length === 0) { toast('没有可计算面积的要素', 'warn'); return; }
+    results.unshift({ label: '总面积', value: formatArea(totalArea), unit: '' });
+    showResults(results);
+    log(`面积计算完成: 共 ${results.length-1} 个要素，总面积 ${formatArea(totalArea)}`, 'success');
+    toast('✅ 面积计算完成');
+  } catch(e) {
+    log(`面积计算失败: ${e.message}`, 'error');
+    toast('面积计算失败: ' + e.message, 'error');
+  }
 }
 
 // ═══════════════════════════════════════════
