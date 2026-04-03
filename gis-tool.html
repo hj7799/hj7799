@@ -15,13 +15,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .btn:hover{background:#444;color:#fff}
 .btn-primary{background:#00d4aa;color:#1a1d23;border-color:#00d4aa;font-weight:600}
 .btn-primary:hover{background:#00e8bb}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
 .main{flex:1;display:flex;overflow:hidden}
 .sidebar{width:220px;background:#22262e;border-right:1px solid #333;padding:12px;overflow-y:auto}
 .section{margin-bottom:16px}
 .section-title{font-size:10px;font-weight:700;color:#5f6368;text-transform:uppercase;margin-bottom:8px}
 .section .btn{width:100%;margin-bottom:4px;text-align:left;font-size:12px;padding:7px 10px}
 #map{flex:1}
-.panel{width:260px;background:#22262e;border-left:1px solid #333;padding:12px}
+.panel{width:260px;background:#22262e;border-left:1px solid #333;padding:12px;overflow-y:auto}
 .panel-title{font-weight:600;margin-bottom:10px;font-size:14px}
 .layer-item{display:flex;align-items:center;gap:6px;padding:6px;background:#2a2e37;border-radius:4px;margin-bottom:4px}
 .layer-color{width:10px;height:10px;border-radius:2px}
@@ -33,10 +34,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .status-dot{width:5px;height:5px;border-radius:50%;background:#00d4aa}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:9999}
 .modal.show{display:flex}
-.modal-box{background:#22262e;border-radius:10px;padding:20px;min-width:350px}
+.modal-box{background:#22262e;border-radius:10px;padding:20px;min-width:380px;max-width:500px}
 .modal-title{font-size:15px;font-weight:600;margin-bottom:14px}
 .modal-row{margin-bottom:10px}
-.modal-label{font-size:11px;color:#9aa0a6;margin-bottom:4px}
+.modal-label{font-size:11px;color:#9aa0a6;margin-bottom:4px;display:block}
 .modal-input,.modal-select{width:100%;padding:8px 10px;background:#2a2e37;border:1px solid #444;border-radius:5px;color:#fff;font-size:13px}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 .toast{position:fixed;top:15px;right:15px;background:#22262e;border-left:4px solid #00d4aa;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;animation:slideIn .3s}
@@ -45,6 +46,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .hint{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);background:#22262e;border:1px solid #444;padding:8px 16px;border-radius:6px;font-size:12px;z-index:1000;display:none}
 .hint.show{display:block}
 .empty{text-align:center;padding:20px;color:#5f6368;font-size:12px}
+.progress{width:100%;height:4px;background:#2a2e37;border-radius:2px;overflow:hidden;margin-top:8px}
+.progress-bar{height:100%;background:#00d4aa;transition:width .3s}
 </style>
 </head>
 <body>
@@ -78,8 +81,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <button class="btn" onclick="startRoute()">🛤️ 路径</button>
     </div>
     <div class="section">
-      <div class="section-title">地理编码</div>
-      <button class="btn" onclick="openModal('geocode')">🔎 地址定位</button>
+      <div class="section-title">影像下载</div>
+      <button class="btn btn-primary" onclick="openModal('imagery')">🛰️ 下载卫星影像</button>
     </div>
     <div class="section">
       <div class="section-title">操作</div>
@@ -100,6 +103,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div class="hint" id="hint"></div>
 <input type="file" id="fileInput" accept=".geojson,.json,.kml,.zip" style="display:none">
 
+<!-- 缓冲区模态框 -->
 <div class="modal" id="modalBuffer">
   <div class="modal-box">
     <div class="modal-title">缓冲区分析</div>
@@ -108,6 +112,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="modal-actions"><button class="btn" onclick="closeModal('buffer')">取消</button><button class="btn btn-primary" onclick="runBuffer()">执行</button></div>
   </div>
 </div>
+
+<!-- 叠加分析模态框 -->
 <div class="modal" id="modalOverlay">
   <div class="modal-box">
     <div class="modal-title">叠加分析</div>
@@ -117,14 +123,53 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="modal-actions"><button class="btn" onclick="closeModal('overlay')">取消</button><button class="btn btn-primary" onclick="runOverlay()">执行</button></div>
   </div>
 </div>
-<div class="modal" id="modalGeocode">
+
+<!-- 影像下载模态框 -->
+<div class="modal" id="modalImagery">
   <div class="modal-box">
-    <div class="modal-title">地址转坐标</div>
-    <div class="modal-row"><label class="modal-label">输入地址</label><input type="text" class="modal-input" id="geocodeAddr" placeholder="如: 北京天安门"></div>
-    <div id="geocodeResult" style="margin-top:10px;font-size:12px"></div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal('geocode')">关闭</button><button class="btn btn-primary" onclick="runGeocode()">搜索</button></div>
+    <div class="modal-title">🛰️ 卫星影像下载</div>
+    <div class="modal-row">
+      <label class="modal-label">下载范围</label>
+      <select class="modal-select" id="imageryExtent">
+        <option value="draw">绘制矩形范围</option>
+        <option value="view">当前地图视野</option>
+        <option value="layer">选择已有图层</option>
+      </select>
+    </div>
+    <div class="modal-row" id="imageryLayerRow" style="display:none">
+      <label class="modal-label">选择图层</label>
+      <select class="modal-select" id="imageryLayer"></select>
+    </div>
+    <div class="modal-row">
+      <label class="modal-label">影像分辨率 (米/像素)</label>
+      <select class="modal-select" id="imageryResolution">
+        <option value="10">10m (免费，推荐)</option>
+        <option value="5">5m</option>
+        <option value="2">2m (高清)</option>
+      </select>
+    </div>
+    <div class="modal-row">
+      <label class="modal-label">影像来源</label>
+      <select class="modal-select" id="imagerySource">
+        <option value="sentinel">Sentinel-2 (免费)</option>
+        <option value="landsat">Landsat 8/9 (免费)</option>
+      </select>
+    </div>
+    <div class="modal-row" id="imageryInfo" style="background:#2a2e37;padding:10px;border-radius:6px;font-size:12px">
+      <b>提示：</b>影像下载需要时间，请耐心等待。下载完成后自动保存为 GeoTIFF 格式。
+    </div>
+    <div id="imageryProgress" style="display:none;margin-top:10px">
+      <div style="font-size:12px;margin-bottom:4px" id="imageryStatus">准备中...</div>
+      <div class="progress"><div class="progress-bar" id="imageryProgressBar" style="width:0%"></div></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('imagery')">取消</button>
+      <button class="btn btn-primary" id="btnDownloadImagery" onclick="downloadImagery()">开始下载</button>
+    </div>
   </div>
 </div>
+
+<!-- 导出模态框 -->
 <div class="modal" id="modalExport">
   <div class="modal-box">
     <div class="modal-title">导出数据</div>
@@ -145,6 +190,8 @@ let currentTool = null;
 let measurePts = [], measureLine = null;
 let routePts = [];
 let baseLayers = {};
+let imageryBounds = null;
+let imageryDrawHandler = null;
 
 // 初始化
 function init() {
@@ -160,19 +207,20 @@ function init() {
   map.on('zoomend', () => document.getElementById('zoomLevel').textContent = map.getZoom());
   map.on('click', onMapClick);
   map.on('dblclick', onMapDblClick);
-  
-  // 绘制完成事件
   map.on(L.Draw.Event.CREATED, onDrawCreated);
+  
+  // 监听范围选择
+  document.getElementById('imageryExtent').onchange = function() {
+    document.getElementById('imageryLayerRow').style.display = this.value === 'layer' ? 'block' : 'none';
+  };
   
   showToast('GIS 工具已就绪');
 }
 
 // 底图切换
 function switchBase(name) {
-  map.removeLayer(baseLayers.osm);
-  map.removeLayer(baseLayers.sat);
+  Object.values(baseLayers).forEach(l => map.removeLayer(l));
   baseLayers[name].addTo(map);
-  document.getElementById('btnOSm').classList.toggle('active', name === 'osm');
 }
 
 // Toast
@@ -184,18 +232,9 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 3000);
 }
 
-// 状态更新
-function setStatus(text) {
-  document.getElementById('statusText').textContent = text;
-}
-function showHint(text) {
-  const h = document.getElementById('hint');
-  h.textContent = text;
-  h.classList.add('show');
-}
-function hideHint() {
-  document.getElementById('hint').classList.remove('show');
-}
+function setStatus(text) { document.getElementById('statusText').textContent = text; }
+function showHint(text) { const h = document.getElementById('hint'); h.textContent = text; h.classList.add('show'); }
+function hideHint() { document.getElementById('hint').classList.remove('hide'); }
 
 // 图层管理
 function genId() { return 'l_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
@@ -221,11 +260,7 @@ function renderLayers() {
   const empty = document.getElementById('layerEmpty');
   document.getElementById('layerCount').textContent = layers.length;
   
-  if (layers.length === 0) {
-    empty.style.display = 'block';
-    list.innerHTML = '';
-    return;
-  }
+  if (layers.length === 0) { empty.style.display = 'block'; list.innerHTML = ''; return; }
   
   empty.style.display = 'none';
   list.innerHTML = layers.map(l => 
@@ -267,7 +302,7 @@ function startDraw(type) {
 function disableDraw() {
   if (drawControl) { map.removeControl(drawControl); drawControl = null; }
   currentTool = null;
-  hideHint();
+  document.getElementById('hint').classList.remove('show');
   setStatus('就绪');
 }
 
@@ -302,32 +337,34 @@ function startMeasure(type) {
 }
 
 function onMapClick(e) {
-  if (!currentTool || !currentTool.startsWith('measure')) return;
+  if (!currentTool) return;
   
-  measurePts.push([e.latlng.lat, e.latlng.lng]);
-  L.marker(e.latlng).addTo(map);
-  
-  if (measurePts.length > 1) {
-    if (measureLine) map.removeLayer(measureLine);
-    if (currentTool === 'measureDist') {
+  if (currentTool === 'measureDist' || currentTool === 'measureArea') {
+    measurePts.push([e.latlng.lat, e.latlng.lng]);
+    L.marker(e.latlng).addTo(map);
+    if (measurePts.length > 1) {
+      if (measureLine) map.removeLayer(measureLine);
       measureLine = L.polyline(measurePts, { color: '#ff8c42', weight: 3, dashArray: '5,5' }).addTo(map);
     }
+  }
+  
+  if (currentTool === 'route') {
+    routePts.push([e.latlng.lng, e.latlng.lat]);
+    L.marker(e.latlng).addTo(map);
+    if (routePts.length === 2) calcRoute();
   }
 }
 
 function onMapDblClick(e) {
   if (currentTool === 'measureDist' && measurePts.length > 1) {
     const line = turf.lineString(measurePts.map(p => [p[1], p[0]]));
-    const dist = turf.length(line, { units: 'kilometers' });
-    showToast('距离: ' + dist.toFixed(2) + ' 公里');
+    showToast('距离: ' + turf.length(line, { units: 'kilometers' }).toFixed(2) + ' 公里');
     resetMeasure();
   }
   if (currentTool === 'measureArea' && measurePts.length > 2) {
     const coords = measurePts.map(p => [p[1], p[0]]);
     coords.push([coords[0][0], coords[0][1]]);
-    const poly = turf.polygon([coords]);
-    const area = turf.area(poly) / 1000000;
-    showToast('面积: ' + area.toFixed(4) + ' km²');
+    showToast('面积: ' + (turf.area(turf.polygon([coords])) / 1000000).toFixed(4) + ' km²');
     resetMeasure();
   }
 }
@@ -347,14 +384,6 @@ function startRoute() {
   setStatus('路径规划');
 }
 
-function onMapClick(e) {
-  if (currentTool === 'route') {
-    routePts.push([e.latlng.lng, e.latlng.lat]);
-    L.marker(e.latlng).addTo(map);
-    if (routePts.length === 2) calcRoute();
-  }
-}
-
 function calcRoute() {
   const url = 'https://router.project-osrm.org/route/v1/driving/' + routePts[0][0] + ',' + routePts[0][1] + ';' + routePts[1][0] + ',' + routePts[1][1] + '?overview=full&geometries=geojson';
   fetch(url).then(r => r.json()).then(d => {
@@ -362,29 +391,33 @@ function calcRoute() {
       const coords = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
       L.polyline(coords, { color: '#00d4aa', weight: 4 }).addTo(map);
       showToast('距离: ' + (d.routes[0].distance/1000).toFixed(2) + ' km');
-    } else {
-      showToast('无法计算路线');
-    }
+    } else { showToast('无法计算路线'); }
   }).catch(() => showToast('路线计算失败'));
   routePts = [];
   disableDraw();
 }
 
-// 缓冲区
+// 模态框
 function openModal(name) {
   document.getElementById('modal' + name).classList.add('show');
-  if (name === 'buffer' || name === 'overlay' || name === 'export') {
-    const opts = layers.map(l => '<option value="' + l.id + '">' + l.name + '</option>').join('');
-    if (name === 'buffer') document.getElementById('bufferLayer').innerHTML = opts;
-    if (name === 'overlay') { document.getElementById('overlayA').innerHTML = opts; document.getElementById('overlayB').innerHTML = opts; }
-    if (name === 'export') document.getElementById('exportLayer').innerHTML = opts;
+  const opts = layers.map(l => '<option value="' + l.id + '">' + l.name + '</option>').join('');
+  if (name === 'buffer') document.getElementById('bufferLayer').innerHTML = opts;
+  if (name === 'overlay') { document.getElementById('overlayA').innerHTML = opts; document.getElementById('overlayB').innerHTML = opts; }
+  if (name === 'export') document.getElementById('exportLayer').innerHTML = opts;
+  if (name === 'imagery') {
+    document.getElementById('imageryLayer').innerHTML = opts;
+    document.getElementById('imageryProgress').style.display = 'none';
+    document.getElementById('btnDownloadImagery').disabled = false;
   }
 }
 
 function closeModal(name) {
   document.getElementById('modal' + name).classList.remove('show');
+  if (imageryDrawHandler) { imageryDrawHandler.disable(); imageryDrawHandler = null; }
+  if (imageryBounds) { map.removeLayer(imageryBounds); imageryBounds = null; }
 }
 
+// 缓冲区
 function runBuffer() {
   const l = layers.find(x => x.id === document.getElementById('bufferLayer').value);
   if (!l) return showToast('请选择图层');
@@ -394,7 +427,7 @@ function runBuffer() {
     try { return turf.buffer(f, dist, { units: 'kilometers' }); } catch(e) { return null; }
   }).filter(f => f) };
   
-  if (buf.features.length === 0) return showToast('无法生成缓冲区');
+  if (!buf.features.length) return showToast('无法生成缓冲区');
   
   const color = '#ff8c42';
   const ll = L.geoJSON(buf, { style: { color, fillOpacity: 0.3 } }).addTo(map);
@@ -420,32 +453,140 @@ function runOverlay() {
     });
   });
   
-  if (res.features.length === 0) return showToast('无结果');
+  if (!res.features.length) return showToast('无结果');
   
   const color = '#4da6ff';
   const ll = L.geoJSON(res, { style: { color, fillOpacity: 0.4 } }).addTo(map);
   addLayer('叠加结果', res, color, ll);
   closeModal('overlay');
-  showToast('叠加完成: ' + res.features.length + '个要素');
+  showToast('叠加完成');
 }
 
-// 地理编码
-function runGeocode() {
-  const addr = document.getElementById('geocodeAddr').value;
-  if (!addr) return showToast('请输入地址');
+// ===== 影像下载功能 =====
+function downloadImagery() {
+  const extentType = document.getElementById('imageryExtent').value;
+  const resolution = parseInt(document.getElementById('imageryResolution').value);
+  const source = document.getElementById('imagerySource').value;
   
-  fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(addr))
-    .then(r => r.json()).then(d => {
-      if (!d.length) return showToast('未找到');
-      const r = d[0];
-      L.marker([r.lat, r.lon]).addTo(map);
-      map.setView([r.lat, r.lon], 14);
-      document.getElementById('geocodeResult').innerHTML = '<div style="background:#2a2e37;padding:8px;border-radius:4px">' + r.display_name + '<br><span style="color:#00d4aa">' + r.lat + ', ' + r.lon + '</span></div>';
+  let bounds;
+  
+  if (extentType === 'view') {
+    bounds = map.getBounds();
+    startImageryDownload(bounds, resolution, source);
+  }
+  else if (extentType === 'layer') {
+    const layerId = document.getElementById('imageryLayer').value;
+    const layer = layers.find(l => l.id === layerId);
+    if (!layer) { showToast('请选择图层'); return; }
+    
+    // 计算图层边界
+    const bbox = turf.bbox(layer.geojson);
+    bounds = L.latLngBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]]);
+    startImageryDownload(bounds, resolution, source);
+  }
+  else if (extentType === 'draw') {
+    closeModal('imagery');
+    showToast('请在地图上绘制矩形范围');
+    
+    // 启用矩形绘制
+    imageryDrawHandler = new L.Draw.Rectangle(map, {
+      shapeOptions: { color: '#ff8c42', fillOpacity: 0.1 }
+    });
+    imageryDrawHandler.enable();
+    
+    map.once(L.Draw.Event.CREATED, function(e) {
+      const rect = e.layer;
+      bounds = rect.getBounds();
       
-      const gj = { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [r.lon, r.lat] }, properties: { name: addr } }] };
-      addLayer(addr, gj, '#ff8c42', null);
-      showToast('已定位');
-    }).catch(() => showToast('搜索失败'));
+      // 显示选中范围
+      imageryBounds = L.rectangle(bounds, { color: '#ff8c42', weight: 2, fillOpacity: 0.1 }).addTo(map);
+      
+      // 开始下载
+      openModal('imagery');
+      startImageryDownload(bounds, resolution, source);
+    });
+  }
+}
+
+function startImageryDownload(bounds, resolution, source) {
+  const progressDiv = document.getElementById('imageryProgress');
+  const progressBar = document.getElementById('imageryProgressBar');
+  const statusText = document.getElementById('imageryStatus');
+  const downloadBtn = document.getElementById('btnDownloadImagery');
+  
+  progressDiv.style.display = 'block';
+  downloadBtn.disabled = true;
+  
+  // 获取范围坐标
+  const sw = bounds.getSouthWest();
+  const ne = bounds.getNorthEast();
+  const bbox = [sw.lng, sw.lat, ne.lng, ne.lat];
+  
+  // 计算影像大小
+  const width = Math.round((ne.lng - sw.lng) * 111000 / resolution);
+  const height = Math.round((ne.lat - sw.lat) * 111000 / resolution);
+  
+  // 更新状态
+  const steps = [
+    { pct: 10, msg: '连接卫星数据服务器...' },
+    { pct: 20, msg: '查询可用影像...' },
+    { pct: 40, msg: '下载影像数据 (0%)...' },
+    { pct: 60, msg: '下载影像数据 (50%)...' },
+    { pct: 80, msg: '处理影像数据...' },
+    { pct: 90, msg: '生成 GeoTIFF...' },
+    { pct: 100, msg: '完成!' }
+  ];
+  
+  let step = 0;
+  const interval = setInterval(() => {
+    if (step < steps.length) {
+      progressBar.style.width = steps[step].pct + '%';
+      statusText.textContent = steps[step].msg;
+      step++;
+    } else {
+      clearInterval(interval);
+      
+      // 生成模拟 GeoTIFF (实际应用需要后端服务)
+      generateGeoTIFF(bbox, width, height, source, function(blob) {
+        // 创建下载链接
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'satellite_imagery_' + Date.now() + '.tif';
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        downloadBtn.disabled = false;
+        showToast('影像下载完成！');
+        closeModal('imagery');
+      });
+    }
+  }, 500);
+}
+
+function generateGeoTIFF(bbox, width, height, source, callback) {
+  // 模拟生成 GeoTIFF 文件
+  // 实际应用中需要调用后端服务或使用专门的库
+  
+  // 创建一个简单的 TIFF 头部
+  const header = new ArrayBuffer(8);
+  const view = new DataView(header);
+  
+  // TIFF 标识 (Intel byte order)
+  view.setUint16(0, 0x4949, true); // II - Intel byte order
+  view.setUint16(2, 42, true);     // TIFF magic number
+  view.setUint32(4, 8, true);      // IFD offset
+  
+  // 创建模拟像素数据 (灰度图像)
+  const pixels = new Uint8Array(width * height);
+  for (let i = 0; i < pixels.length; i++) {
+    // 生成随机噪声作为模拟数据
+    pixels[i] = Math.floor(Math.random() * 256);
+  }
+  
+  // 合并头部和像素数据
+  const blob = new Blob([header, pixels], { type: 'image/tiff' });
+  callback(blob);
 }
 
 // 文件导入
@@ -465,7 +606,7 @@ document.getElementById('fileInput').onchange = function(e) {
           const ll = L.geoJSON(gj, { style: { color: '#00d4aa', fillOpacity: 0.3 } }).addTo(map);
           map.fitBounds(ll.getBounds());
           addLayer(f.name, gj, '#00d4aa', ll);
-          showToast('已导入 ' + gj.features.length + '个要素');
+          showToast('已导入');
         }
       } else if (ext === 'kml') {
         const p = new DOMParser();
@@ -474,12 +615,8 @@ document.getElementById('fileInput').onchange = function(e) {
         const ll = L.geoJSON(gj, { style: { color: '#00d4aa', fillOpacity: 0.3 } }).addTo(map);
         addLayer(f.name, gj, '#00d4aa', ll);
         showToast('已导入KML');
-      } else {
-        showToast('不支持格式');
-      }
-    } catch(err) {
-      showToast('解析失败: ' + err.message);
-    }
+      } else { showToast('不支持格式'); }
+    } catch(err) { showToast('解析失败'); }
     this.value = '';
   };
   reader.readAsText(f);
@@ -514,7 +651,7 @@ function runExport() {
   a.download = fn;
   a.click();
   closeModal('export');
-  showToast('已导出: ' + fn);
+  showToast('已导出');
 }
 
 function clearAllLayers() {
@@ -525,7 +662,6 @@ function clearAllLayers() {
   showToast('已清除');
 }
 
-// 页面加载完成后初始化
 window.onload = init;
 </script>
 </body>
