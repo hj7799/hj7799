@@ -407,8 +407,6 @@ map && map.on(L.Draw.Event.CREATED, function(e) {
   const layer = e.layer;
   const type = e.layerType;
   
-  drawnItems.addLayer(layer);
-  
   // 转换为 GeoJSON
   let geojson;
   if (type === 'marker') {
@@ -418,19 +416,35 @@ map && map.on(L.Draw.Event.CREATED, function(e) {
       features: [{
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [latlng.lng, latlng.lat] },
-        properties: { name: '标注点' }
+        properties: { name: '标注点', created: new Date().toLocaleString() }
       }]
     };
   } else {
-    geojson = layer.toGeoJSON();
-    geojson.features[0].properties = { name: type === 'polyline' ? '线条' : '多边形' };
+    const gj = layer.toGeoJSON();
+    geojson = {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        geometry: gj.geometry,
+        properties: { name: type === 'polyline' ? '线条' : '多边形', created: new Date().toLocaleString() }
+      }]
+    };
   }
   
+  // 创建独立的图层组
   const color = type === 'marker' ? '#ff8c42' : (type === 'polyline' ? '#4da6ff' : '#00d4aa');
-  const name = type === 'marker' ? '点标注' : (type === 'polyline' ? '线条' : '多边形');
+  const name = type === 'marker' ? '点标注_' + new Date().toLocaleTimeString() : 
+               (type === 'polyline' ? '线条_' + new Date().toLocaleTimeString() : '多边形_' + new Date().toLocaleTimeString());
   
-  addLayer(name, geojson, color, drawnItems);
-  showToast(`已添加 ${name}`);
+  // 创建新的 Leaflet 图层
+  const newLayer = L.geoJSON(geojson, {
+    style: { color: color, fillColor: color, fillOpacity: 0.3, weight: 3 },
+    pointToLayer: (f, latlng) => L.marker(latlng)
+  }).addTo(map);
+  
+  // 添加到图层管理
+  addLayer(name, geojson, color, newLayer);
+  showToast(`已保存: ${name}`);
   stopCurrentTool();
 });
 
