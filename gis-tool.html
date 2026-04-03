@@ -528,10 +528,16 @@ function downloadMapImage(bounds,imgType,imgFormat){
         btn.disabled=false;
         showToast('影像截取完成!右键保存或截图');
       }, 500);
-    }, 1000);
-  }
-  
-  function downloadDataUrl(dataUrl, filename) {
+    } catch(e) {
+      showToast('影像处理失败: ' + e.message);
+      map.removeLayer(tempTileLayer);
+      progress.style.display='none';
+      btn.disabled=false;
+    }
+  }, 1000);
+}
+
+function downloadDataUrl(dataUrl, filename) {
     var a = document.createElement('a');
     a.href = dataUrl;
     a.download = filename;
