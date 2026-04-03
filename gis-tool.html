@@ -46,8 +46,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .hint{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);background:#22262e;border:1px solid #444;padding:8px 16px;border-radius:6px;font-size:12px;z-index:1000;display:none}
 .hint.show{display:block}
 .empty{text-align:center;padding:20px;color:#5f6368;font-size:12px}
-.progress{width:100%;height:4px;background:#2a2e37;border-radius:2px;overflow:hidden;margin-top:8px}
-.progress-bar{height:100%;background:#00d4aa;transition:width .3s}
 </style>
 </head>
 <body>
@@ -67,7 +65,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <button class="btn" onclick="startDraw('marker')">📍 绘制点</button>
       <button class="btn" onclick="startDraw('polyline')">✏️ 绘制线</button>
       <button class="btn" onclick="startDraw('polygon')">⬡ 绘制面</button>
-      <button class="btn" onclick="disableDraw()">🚫 停止</button>
+      <button class="btn btn-primary" onclick="disableDraw()">🚫 停止绘制</button>
     </div>
     <div class="section">
       <div class="section-title">测量</div>
@@ -79,10 +77,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <button class="btn" onclick="openModal('buffer')">⭕ 缓冲区</button>
       <button class="btn" onclick="openModal('overlay')">🔀 叠加</button>
       <button class="btn" onclick="startRoute()">🛤️ 路径</button>
-    </div>
-    <div class="section">
-      <div class="section-title">影像下载</div>
-      <button class="btn btn-primary" onclick="openModal('imagery')">🛰️ 下载卫星影像</button>
     </div>
     <div class="section">
       <div class="section-title">操作</div>
@@ -101,7 +95,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <span>缩放: <span id="zoomLevel">4</span></span>
 </div>
 <div class="hint" id="hint"></div>
-<input type="file" id="fileInput" accept=".geojson,.json,.kml,.zip" style="display:none">
+<input type="file" id="fileInput" accept=".geojson,.json,.kml,.zip,.csv" style="display:none">
 
 <!-- 缓冲区模态框 -->
 <div class="modal" id="modalBuffer">
@@ -124,51 +118,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
 </div>
 
-<!-- 影像下载模态框 -->
-<div class="modal" id="modalImagery">
-  <div class="modal-box">
-    <div class="modal-title">🛰️ 卫星影像下载</div>
-    <div class="modal-row">
-      <label class="modal-label">下载范围</label>
-      <select class="modal-select" id="imageryExtent">
-        <option value="draw">绘制矩形范围</option>
-        <option value="view">当前地图视野</option>
-        <option value="layer">选择已有图层</option>
-      </select>
-    </div>
-    <div class="modal-row" id="imageryLayerRow" style="display:none">
-      <label class="modal-label">选择图层</label>
-      <select class="modal-select" id="imageryLayer"></select>
-    </div>
-    <div class="modal-row">
-      <label class="modal-label">影像分辨率 (米/像素)</label>
-      <select class="modal-select" id="imageryResolution">
-        <option value="10">10m (免费，推荐)</option>
-        <option value="5">5m</option>
-        <option value="2">2m (高清)</option>
-      </select>
-    </div>
-    <div class="modal-row">
-      <label class="modal-label">影像来源</label>
-      <select class="modal-select" id="imagerySource">
-        <option value="sentinel">Sentinel-2 (免费)</option>
-        <option value="landsat">Landsat 8/9 (免费)</option>
-      </select>
-    </div>
-    <div class="modal-row" id="imageryInfo" style="background:#2a2e37;padding:10px;border-radius:6px;font-size:12px">
-      <b>提示：</b>影像下载需要时间，请耐心等待。下载完成后自动保存为 GeoTIFF 格式。
-    </div>
-    <div id="imageryProgress" style="display:none;margin-top:10px">
-      <div style="font-size:12px;margin-bottom:4px" id="imageryStatus">准备中...</div>
-      <div class="progress"><div class="progress-bar" id="imageryProgressBar" style="width:0%"></div></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeModal('imagery')">取消</button>
-      <button class="btn btn-primary" id="btnDownloadImagery" onclick="downloadImagery()">开始下载</button>
-    </div>
-  </div>
-</div>
-
 <!-- 导出模态框 -->
 <div class="modal" id="modalExport">
   <div class="modal-box">
@@ -182,16 +131,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+<script src="https://unpkg.com/togeojson@0.16.0/togeojson.js"></script>
+<script src="https://unpkg.com/shpjs@4.0.4/dist/shp.js"></script>
 <script>
 // 全局变量
-let map, drawnItems, drawControl;
+let map, drawnItems;
 let layers = [];
 let currentTool = null;
-let measurePts = [], measureLine = null;
+let currentDrawHandler = null;
+let measurePts = [], measureLine = null, measureMarkers = [];
 let routePts = [];
 let baseLayers = {};
-let imageryBounds = null;
-let imageryDrawHandler = null;
 
 // 初始化
 function init() {
@@ -208,11 +158,6 @@ function init() {
   map.on('click', onMapClick);
   map.on('dblclick', onMapDblClick);
   map.on(L.Draw.Event.CREATED, onDrawCreated);
-  
-  // 监听范围选择
-  document.getElementById('imageryExtent').onchange = function() {
-    document.getElementById('imageryLayerRow').style.display = this.value === 'layer' ? 'block' : 'none';
-  };
   
   showToast('GIS 工具已就绪');
 }
@@ -234,7 +179,7 @@ function showToast(msg) {
 
 function setStatus(text) { document.getElementById('statusText').textContent = text; }
 function showHint(text) { const h = document.getElementById('hint'); h.textContent = text; h.classList.add('show'); }
-function hideHint() { document.getElementById('hint').classList.remove('hide'); }
+function hideHint() { document.getElementById('hint').classList.remove('show'); }
 
 // 图层管理
 function genId() { return 'l_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
@@ -275,35 +220,31 @@ function startDraw(type) {
   disableDraw();
   currentTool = 'draw';
   
-  const opts = {
-    position: 'topleft',
-    draw: {
-      marker: type === 'marker' ? {} : false,
-      polyline: type === 'polyline' ? { shapeOptions: { color: '#00d4aa', weight: 3 } } : false,
-      polygon: type === 'polygon' ? { shapeOptions: { color: '#00d4aa', fillOpacity: 0.3 } } : false,
-      rectangle: false, circle: false
-    },
-    edit: { featureGroup: drawnItems }
-  };
-  
-  drawControl = new L.Control.Draw(opts);
-  map.addControl(drawControl);
-  
   let handler;
-  if (type === 'marker') handler = new L.Draw.Marker(map, {});
-  else if (type === 'polyline') handler = new L.Draw.Polyline(map, opts.draw.polyline);
-  else handler = new L.Draw.Polygon(map, opts.draw.polygon);
+  if (type === 'marker') {
+    handler = new L.Draw.Marker(map, {});
+  } else if (type === 'polyline') {
+    handler = new L.Draw.Polyline(map, { shapeOptions: { color: '#00d4aa', weight: 3 } });
+  } else {
+    handler = new L.Draw.Polygon(map, { shapeOptions: { color: '#00d4aa', fillOpacity: 0.3 } });
+  }
+  
   handler.enable();
+  currentDrawHandler = handler;
   
   showHint('点击绘制，双击结束');
   setStatus('绘制中');
 }
 
 function disableDraw() {
-  if (drawControl) { map.removeControl(drawControl); drawControl = null; }
+  if (currentDrawHandler) {
+    currentDrawHandler.disable();
+    currentDrawHandler = null;
+  }
   currentTool = null;
   document.getElementById('hint').classList.remove('show');
   setStatus('就绪');
+  showToast('已停止绘制');
 }
 
 function onDrawCreated(e) {
@@ -319,9 +260,13 @@ function onDrawCreated(e) {
     geojson = { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [ll.lng, ll.lat] }, properties: {} }] };
   } else {
     geojson = layer.toGeoJSON();
+    if (!geojson.type) geojson = { type: 'FeatureCollection', features: [geojson] };
   }
   
-  const leafletLayer = L.geoJSON(geojson, { style: { color, fillOpacity: 0.3 } }).addTo(map);
+  const leafletLayer = L.geoJSON(geojson, { 
+    pointToLayer: (f, latlng) => L.marker(latlng),
+    style: { color, fillOpacity: 0.3 } 
+  }).addTo(map);
   addLayer(name + '_' + Date.now(), geojson, color, leafletLayer);
   showToast('已保存: ' + name);
   disableDraw();
@@ -332,6 +277,9 @@ function startMeasure(type) {
   disableDraw();
   currentTool = type === 'dist' ? 'measureDist' : 'measureArea';
   measurePts = [];
+  measureMarkers.forEach(m => map.removeLayer(m));
+  measureMarkers = [];
+  if (measureLine) { map.removeLayer(measureLine); measureLine = null; }
   showHint('点击添加点，双击结束');
   setStatus(type === 'dist' ? '测距' : '测面');
 }
@@ -341,7 +289,8 @@ function onMapClick(e) {
   
   if (currentTool === 'measureDist' || currentTool === 'measureArea') {
     measurePts.push([e.latlng.lat, e.latlng.lng]);
-    L.marker(e.latlng).addTo(map);
+    const m = L.marker(e.latlng).addTo(map);
+    measureMarkers.push(m);
     if (measurePts.length > 1) {
       if (measureLine) map.removeLayer(measureLine);
       measureLine = L.polyline(measurePts, { color: '#ff8c42', weight: 3, dashArray: '5,5' }).addTo(map);
@@ -371,6 +320,8 @@ function onMapDblClick(e) {
 
 function resetMeasure() {
   measurePts = [];
+  measureMarkers.forEach(m => map.removeLayer(m));
+  measureMarkers = [];
   if (measureLine) { map.removeLayer(measureLine); measureLine = null; }
   disableDraw();
 }
@@ -401,20 +352,13 @@ function calcRoute() {
 function openModal(name) {
   document.getElementById('modal' + name).classList.add('show');
   const opts = layers.map(l => '<option value="' + l.id + '">' + l.name + '</option>').join('');
-  if (name === 'buffer') document.getElementById('bufferLayer').innerHTML = opts;
-  if (name === 'overlay') { document.getElementById('overlayA').innerHTML = opts; document.getElementById('overlayB').innerHTML = opts; }
-  if (name === 'export') document.getElementById('exportLayer').innerHTML = opts;
-  if (name === 'imagery') {
-    document.getElementById('imageryLayer').innerHTML = opts;
-    document.getElementById('imageryProgress').style.display = 'none';
-    document.getElementById('btnDownloadImagery').disabled = false;
-  }
+  if (name === 'buffer') document.getElementById('bufferLayer').innerHTML = opts || '<option value="">无图层</option>';
+  if (name === 'overlay') { document.getElementById('overlayA').innerHTML = opts || '<option value="">无图层</option>'; document.getElementById('overlayB').innerHTML = opts || '<option value="">无图层</option>'; }
+  if (name === 'export') document.getElementById('exportLayer').innerHTML = opts || '<option value="">无图层</option>';
 }
 
 function closeModal(name) {
   document.getElementById('modal' + name).classList.remove('show');
-  if (imageryDrawHandler) { imageryDrawHandler.disable(); imageryDrawHandler = null; }
-  if (imageryBounds) { map.removeLayer(imageryBounds); imageryBounds = null; }
 }
 
 // 缓冲区
@@ -462,133 +406,6 @@ function runOverlay() {
   showToast('叠加完成');
 }
 
-// ===== 影像下载功能 =====
-function downloadImagery() {
-  const extentType = document.getElementById('imageryExtent').value;
-  const resolution = parseInt(document.getElementById('imageryResolution').value);
-  const source = document.getElementById('imagerySource').value;
-  
-  let bounds;
-  
-  if (extentType === 'view') {
-    bounds = map.getBounds();
-    startImageryDownload(bounds, resolution, source);
-  }
-  else if (extentType === 'layer') {
-    const layerId = document.getElementById('imageryLayer').value;
-    const layer = layers.find(l => l.id === layerId);
-    if (!layer) { showToast('请选择图层'); return; }
-    
-    // 计算图层边界
-    const bbox = turf.bbox(layer.geojson);
-    bounds = L.latLngBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]]);
-    startImageryDownload(bounds, resolution, source);
-  }
-  else if (extentType === 'draw') {
-    closeModal('imagery');
-    showToast('请在地图上绘制矩形范围');
-    
-    // 启用矩形绘制
-    imageryDrawHandler = new L.Draw.Rectangle(map, {
-      shapeOptions: { color: '#ff8c42', fillOpacity: 0.1 }
-    });
-    imageryDrawHandler.enable();
-    
-    map.once(L.Draw.Event.CREATED, function(e) {
-      const rect = e.layer;
-      bounds = rect.getBounds();
-      
-      // 显示选中范围
-      imageryBounds = L.rectangle(bounds, { color: '#ff8c42', weight: 2, fillOpacity: 0.1 }).addTo(map);
-      
-      // 开始下载
-      openModal('imagery');
-      startImageryDownload(bounds, resolution, source);
-    });
-  }
-}
-
-function startImageryDownload(bounds, resolution, source) {
-  const progressDiv = document.getElementById('imageryProgress');
-  const progressBar = document.getElementById('imageryProgressBar');
-  const statusText = document.getElementById('imageryStatus');
-  const downloadBtn = document.getElementById('btnDownloadImagery');
-  
-  progressDiv.style.display = 'block';
-  downloadBtn.disabled = true;
-  
-  // 获取范围坐标
-  const sw = bounds.getSouthWest();
-  const ne = bounds.getNorthEast();
-  const bbox = [sw.lng, sw.lat, ne.lng, ne.lat];
-  
-  // 计算影像大小
-  const width = Math.round((ne.lng - sw.lng) * 111000 / resolution);
-  const height = Math.round((ne.lat - sw.lat) * 111000 / resolution);
-  
-  // 更新状态
-  const steps = [
-    { pct: 10, msg: '连接卫星数据服务器...' },
-    { pct: 20, msg: '查询可用影像...' },
-    { pct: 40, msg: '下载影像数据 (0%)...' },
-    { pct: 60, msg: '下载影像数据 (50%)...' },
-    { pct: 80, msg: '处理影像数据...' },
-    { pct: 90, msg: '生成 GeoTIFF...' },
-    { pct: 100, msg: '完成!' }
-  ];
-  
-  let step = 0;
-  const interval = setInterval(() => {
-    if (step < steps.length) {
-      progressBar.style.width = steps[step].pct + '%';
-      statusText.textContent = steps[step].msg;
-      step++;
-    } else {
-      clearInterval(interval);
-      
-      // 生成模拟 GeoTIFF (实际应用需要后端服务)
-      generateGeoTIFF(bbox, width, height, source, function(blob) {
-        // 创建下载链接
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'satellite_imagery_' + Date.now() + '.tif';
-        a.click();
-        URL.revokeObjectURL(url);
-        
-        downloadBtn.disabled = false;
-        showToast('影像下载完成！');
-        closeModal('imagery');
-      });
-    }
-  }, 500);
-}
-
-function generateGeoTIFF(bbox, width, height, source, callback) {
-  // 模拟生成 GeoTIFF 文件
-  // 实际应用中需要调用后端服务或使用专门的库
-  
-  // 创建一个简单的 TIFF 头部
-  const header = new ArrayBuffer(8);
-  const view = new DataView(header);
-  
-  // TIFF 标识 (Intel byte order)
-  view.setUint16(0, 0x4949, true); // II - Intel byte order
-  view.setUint16(2, 42, true);     // TIFF magic number
-  view.setUint32(4, 8, true);      // IFD offset
-  
-  // 创建模拟像素数据 (灰度图像)
-  const pixels = new Uint8Array(width * height);
-  for (let i = 0; i < pixels.length; i++) {
-    // 生成随机噪声作为模拟数据
-    pixels[i] = Math.floor(Math.random() * 256);
-  }
-  
-  // 合并头部和像素数据
-  const blob = new Blob([header, pixels], { type: 'image/tiff' });
-  callback(blob);
-}
-
 // 文件导入
 document.getElementById('fileInput').onchange = function(e) {
   const f = e.target.files[0];
@@ -596,30 +413,104 @@ document.getElementById('fileInput').onchange = function(e) {
   const ext = f.name.split('.').pop().toLowerCase();
   const reader = new FileReader();
   
-  reader.onload = function(ev) {
-    try {
-      let gj;
-      if (ext === 'json' || ext === 'geojson') {
-        gj = JSON.parse(ev.target.result);
-        if (!gj.type) showToast('无效的GeoJSON');
-        else {
-          const ll = L.geoJSON(gj, { style: { color: '#00d4aa', fillOpacity: 0.3 } }).addTo(map);
-          map.fitBounds(ll.getBounds());
-          addLayer(f.name, gj, '#00d4aa', ll);
-          showToast('已导入');
+  if (ext === 'zip') {
+    // Shapefile ZIP 导入
+    reader.onload = function(ev) {
+      shp(ev.target.result).then(function(geojson) {
+        const ll = L.geoJSON(geojson, { style: { color: '#00d4aa', fillOpacity: 0.3 } }).addTo(map);
+        map.fitBounds(ll.getBounds());
+        addLayer(f.name.replace('.zip', ''), geojson, '#00d4aa', ll);
+        showToast('已导入 Shapefile');
+      }).catch(function(err) {
+        console.error(err);
+        showToast('Shapefile 解析失败: ' + err.message);
+      });
+    };
+    reader.readAsArrayBuffer(f);
+  }
+  else if (ext === 'csv') {
+    // CSV 导入
+    reader.onload = function(ev) {
+      try {
+        const text = ev.target.result;
+        const lines = text.trim().split('\n');
+        const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+        
+        const latIdx = header.findIndex(h => h === 'lat' || h === 'latitude' || h === '纬度');
+        const lonIdx = header.findIndex(h => h === 'lon' || h === 'lng' || h === 'longitude' || h === '经度');
+        const nameIdx = header.findIndex(h => h === 'name' || h === '名称');
+        
+        if (latIdx === -1 || lonIdx === -1) {
+          showToast('CSV 需要包含经纬度列 (lat, lon)');
+          return;
         }
-      } else if (ext === 'kml') {
+        
+        const features = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',');
+          if (cols.length > Math.max(latIdx, lonIdx)) {
+            const lat = parseFloat(cols[latIdx]);
+            const lon = parseFloat(cols[lonIdx]);
+            if (!isNaN(lat) && !isNaN(lon)) {
+              features.push({
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [lon, lat] },
+                properties: { name: nameIdx >= 0 ? cols[nameIdx] : 'P' + i }
+              });
+            }
+          }
+        }
+        
+        if (features.length === 0) {
+          showToast('CSV 中没有有效的坐标点');
+          return;
+        }
+        
+        const geojson = { type: 'FeatureCollection', features };
+        const ll = L.geoJSON(geojson, { 
+          pointToLayer: (f, latlng) => L.marker(latlng),
+          style: { color: '#00d4aa', fillOpacity: 0.3 } 
+        }).addTo(map);
+        map.fitBounds(ll.getBounds());
+        addLayer(f.name.replace('.csv', ''), geojson, '#00d4aa', ll);
+        showToast('已导入 CSV: ' + features.length + ' 个点');
+      } catch (err) {
+        showToast('CSV 解析失败');
+      }
+    };
+    reader.readAsText(f);
+  }
+  else if (ext === 'json' || ext === 'geojson') {
+    reader.onload = function(ev) {
+      try {
+        let gj = JSON.parse(ev.target.result);
+        if (!gj.type) { showToast('无效的GeoJSON'); return; }
+        const ll = L.geoJSON(gj, { style: { color: '#00d4aa', fillOpacity: 0.3 } }).addTo(map);
+        map.fitBounds(ll.getBounds());
+        addLayer(f.name, gj, '#00d4aa', ll);
+        showToast('已导入 GeoJSON');
+      } catch(err) { showToast('解析失败'); }
+    };
+    reader.readAsText(f);
+  }
+  else if (ext === 'kml') {
+    reader.onload = function(ev) {
+      try {
         const p = new DOMParser();
         const kml = p.parseFromString(ev.target.result, 'text/xml');
-        gj = toGeoJSON.kml(kml);
+        const gj = toGeoJSON.kml(kml);
         const ll = L.geoJSON(gj, { style: { color: '#00d4aa', fillOpacity: 0.3 } }).addTo(map);
+        map.fitBounds(ll.getBounds());
         addLayer(f.name, gj, '#00d4aa', ll);
-        showToast('已导入KML');
-      } else { showToast('不支持格式'); }
-    } catch(err) { showToast('解析失败'); }
-    this.value = '';
-  };
-  reader.readAsText(f);
+        showToast('已导入 KML');
+      } catch(err) { showToast('KML 解析失败'); }
+    };
+    reader.readAsText(f);
+  }
+  else {
+    showToast('不支持格式: ' + ext);
+  }
+  this.value = '';
 };
 
 // 导出
@@ -634,18 +525,35 @@ function runExport() {
   if (!l) return showToast('请选择图层');
   
   let data, fn;
-  if (fmt === 'geojson') { data = JSON.stringify(l.geojson, null, 2); fn = l.name + '.geojson'; }
+  if (fmt === 'geojson') {
+    data = JSON.stringify(l.geojson, null, 2);
+    fn = l.name + '.geojson';
+  }
   else if (fmt === 'kml') {
-    data = '<?xml version="1.0"?><kml><Document>' + l.geojson.features.map((f,i) => '<Placemark><name>P'+i+'</name><Point><coordinates>'+f.geometry.coordinates+'</coordinates></Point></Placemark>').join('') + '</Document></kml>';
+    // 简单 KML 导出
+    let kml = '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>';
+    l.geojson.features.forEach((f, i) => {
+      const geom = f.geometry;
+      if (geom.type === 'Point') {
+        kml += '<Placemark><name>' + (f.properties.name || 'P'+i) + '</name><Point><coordinates>' + geom.coordinates[0] + ',' + geom.coordinates[1] + '</coordinates></Point></Placemark>';
+      } else if (geom.type === 'LineString') {
+        kml += '<Placemark><name>' + (f.properties.name || 'L'+i) + '</name><LineString><coordinates>' + geom.coordinates.map(c => c[0]+','+c[1]).join(' ') + '</coordinates></LineString></Placemark>';
+      } else if (geom.type === 'Polygon') {
+        kml += '<Placemark><name>' + (f.properties.name || 'Poly'+i) + '</name><Polygon><outerBoundaryIs><LinearRing><coordinates>' + geom.coordinates[0].map(c => c[0]+','+c[1]).join(' ') + '</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>';
+      }
+    });
+    kml += '</Document></kml>';
+    data = kml;
     fn = l.name + '.kml';
-  } else {
+  }
+  else {
     const pts = l.geojson.features.filter(f => f.geometry.type === 'Point');
-    if (!pts.length) return showToast('无点要素');
-    data = 'lat,lon\n' + pts.map(f => f.geometry.coordinates[1] + ',' + f.geometry.coordinates[0]).join('\n');
+    if (!pts.length) return showToast('无点要素，无法导出 CSV');
+    data = 'lat,lon,name\n' + pts.map(f => f.geometry.coordinates[1] + ',' + f.geometry.coordinates[0] + ',' + (f.properties.name || '')).join('\n');
     fn = l.name + '.csv';
   }
   
-  const b = new Blob([data], { type: 'text/plain' });
+  const b = new Blob([data], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(b);
   a.download = fn;
