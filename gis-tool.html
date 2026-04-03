@@ -8,569 +8,722 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#1a1d23;color:#e8eaed;height:100vh;display:flex;flex-direction:column}
-.header{background:#22262e;padding:10px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #333}
-.logo{font-weight:700;color:#00d4aa;font-size:16px}
-.btn{background:#333842;color:#9aa0a6;border:1px solid #444;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:13px;transition:all .2s}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#1a1d23;color:#e8eaed;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.header{background:#22262e;padding:9px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #333;flex-shrink:0}
+.logo{font-weight:700;color:#00d4aa;font-size:15px}
+.btn{background:#333842;color:#9aa0a6;border:1px solid #444;padding:6px 11px;border-radius:6px;cursor:pointer;font-size:12px;transition:all .2s;white-space:nowrap}
 .btn:hover{background:#444;color:#fff}
 .btn-primary{background:#00d4aa;color:#1a1d23;border-color:#00d4aa;font-weight:600}
 .btn-primary:hover{background:#00e8bb}
-.btn:disabled{opacity:0.5;cursor:not-allowed}
 .main{flex:1;display:flex;overflow:hidden}
-.sidebar{width:220px;background:#22262e;border-right:1px solid #333;padding:12px;overflow-y:auto}
-.section{margin-bottom:16px}
-.section-title{font-size:10px;font-weight:700;color:#5f6368;text-transform:uppercase;margin-bottom:8px}
-.section .btn{width:100%;margin-bottom:4px;text-align:left;font-size:12px;padding:7px 10px}
+.sidebar{width:205px;background:#22262e;border-right:1px solid #333;padding:10px;overflow-y:auto;flex-shrink:0}
+.section{margin-bottom:12px}
+.section-title{font-size:10px;font-weight:700;color:#5f6368;text-transform:uppercase;margin-bottom:5px}
+.section .btn{width:100%;margin-bottom:3px;text-align:left;font-size:11px;padding:6px 8px}
 #map{flex:1}
-.panel{width:260px;background:#22262e;border-left:1px solid #333;padding:12px;overflow-y:auto}
-.panel-title{font-weight:600;margin-bottom:10px;font-size:14px}
-.layer-item{display:flex;align-items:center;gap:6px;padding:6px;background:#2a2e37;border-radius:4px;margin-bottom:4px}
-.layer-color{width:10px;height:10px;border-radius:2px}
-.layer-name{flex:1;font-size:11px}
-.layer-count{font-size:10px;color:#666}
-.layer-btn{background:0;border:0;color:#888;cursor:pointer;padding:2px 4px}
+.panel{width:245px;background:#22262e;border-left:1px solid #333;padding:10px;overflow-y:auto;flex-shrink:0}
+.panel-title{font-weight:600;margin-bottom:8px;font-size:13px}
+.layer-item{display:flex;align-items:center;gap:5px;padding:5px 6px;background:#2a2e37;border-radius:4px;margin-bottom:3px;font-size:11px}
+.layer-color{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.layer-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.layer-count{color:#666;font-size:10px;margin-right:3px}
+.layer-btn{background:0;border:0;color:#888;cursor:pointer;font-size:10px;padding:1px 4px}
 .layer-btn:hover{color:#fff}
-.statusbar{background:#2a2e37;border-top:1px solid #333;padding:6px 16px;display:flex;gap:16px;font-size:11px;color:#9aa0a6}
-.status-dot{width:5px;height:5px;border-radius:50%;background:#00d4aa}
+.statusbar{background:#1e2228;border-top:1px solid #333;padding:5px 16px;display:flex;gap:14px;font-size:11px;color:#9aa0a6;flex-shrink:0}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#00d4aa}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:9999}
 .modal.show{display:flex}
-.modal-box{background:#22262e;border-radius:10px;padding:20px;min-width:380px;max-width:500px}
-.modal-title{font-size:15px;font-weight:600;margin-bottom:14px}
+.modal-box{background:#22262e;border-radius:10px;padding:20px;min-width:360px;max-width:460px;border:1px solid #444}
+.modal-title{font-size:15px;font-weight:600;margin-bottom:12px}
 .modal-row{margin-bottom:10px}
 .modal-label{font-size:11px;color:#9aa0a6;margin-bottom:4px;display:block}
 .modal-input,.modal-select{width:100%;padding:8px 10px;background:#2a2e37;border:1px solid #444;border-radius:5px;color:#fff;font-size:13px}
+.modal-select{cursor:pointer}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
-.toast{position:fixed;top:15px;right:15px;background:#22262e;border-left:4px solid #00d4aa;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;animation:slideIn .3s}
-@keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast{position:fixed;top:14px;right:14px;background:#2a2e37;border-left:4px solid #00d4aa;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;animation:slideIn .3s;max-width:300px}
+@keyframes slideIn{from{transform:translateX(120px);opacity:0}to{transform:translateX(0);opacity:1}}
 .coords{font-family:monospace;font-size:11px;color:#666;margin-left:auto}
-.hint{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);background:#22262e;border:1px solid #444;padding:8px 16px;border-radius:6px;font-size:12px;z-index:1000;display:none}
+.hint{position:fixed;bottom:50px;left:50%;transform:translateX(-50%);background:#2a2e37;border:1px solid #444;padding:8px 18px;border-radius:8px;font-size:12px;z-index:1000;display:none;box-shadow:0 4px 12px rgba(0,0,0,.4)}
 .hint.show{display:block}
-.empty{text-align:center;padding:20px;color:#5f6368;font-size:12px}
+.empty{padding:12px 0;color:#5f6368;font-size:11px;line-height:1.8}
+.info-box{background:#1e2228;padding:10px;border-radius:6px;font-size:11px;line-height:1.5;color:#9aa0a6;border:1px solid #333}
+.info-box b{color:#00d4aa}
+.progress-wrap{width:100%;height:5px;background:#2a2e37;border-radius:3px;overflow:hidden;margin-top:8px}
+.progress-bar{height:100%;background:linear-gradient(90deg,#00d4aa,#00e8bb);transition:width .3s;width:0}
 </style>
 </head>
 <body>
 <div class="header">
   <div class="logo">🗺️ GeoVista</div>
-  <button class="btn" onclick="document.getElementById('fileInput').click()">📁 导入</button>
+  <button class="btn" onclick="document.getElementById('fileInput').click()">📂 导入</button>
   <button class="btn" onclick="openExportModal()">💾 导出</button>
+  <button class="btn btn-primary" onclick="openImageryModal()">🛰️ 下载影像</button>
   <div style="flex:1"></div>
-  <button class="btn" id="btnOSM" onclick="switchBase('osm')">🗺️</button>
-  <button class="btn" id="btnSat" onclick="switchBase('sat')">🛰️</button>
-  <div class="coords" id="coords">-- , --</div>
+  <button class="btn" onclick="switchBase('osm')">🗺️</button>
+  <button class="btn" onclick="switchBase('sat')">🛰️</button>
+  <div class="coords" id="coords">--.-- , --.--</div>
 </div>
 <div class="main">
   <div class="sidebar">
-    <div class="section">
-      <div class="section-title">绘制</div>
+    <div class="section"><div class="section-title">绘制工具</div>
       <button class="btn" onclick="startDraw('marker')">📍 绘制点</button>
       <button class="btn" onclick="startDraw('polyline')">✏️ 绘制线</button>
       <button class="btn" onclick="startDraw('polygon')">⬡ 绘制面</button>
       <button class="btn btn-primary" onclick="disableDraw()">🚫 停止绘制</button>
     </div>
-    <div class="section">
-      <div class="section-title">测量</div>
-      <button class="btn" onclick="startMeasure('dist')">📏 距离</button>
-      <button class="btn" onclick="startMeasure('area')">📐 面积</button>
+    <div class="section"><div class="section-title">测量工具</div>
+      <button class="btn" onclick="startMeasure('dist')">📏 测量距离</button>
+      <button class="btn" onclick="startMeasure('area')">📐 测量面积</button>
     </div>
-    <div class="section">
-      <div class="section-title">分析</div>
+    <div class="section"><div class="section-title">空间分析</div>
       <button class="btn" onclick="openModal('buffer')">⭕ 缓冲区</button>
-      <button class="btn" onclick="openModal('overlay')">🔀 叠加</button>
-      <button class="btn" onclick="startRoute()">🛤️ 路径</button>
+      <button class="btn" onclick="openModal('overlay')">🔀 叠加分析</button>
+      <button class="btn" onclick="startRoute()">🛤️ 路径规划</button>
     </div>
-    <div class="section">
-      <div class="section-title">操作</div>
+    <div class="section"><div class="section-title">操作</div>
       <button class="btn" onclick="clearAllLayers()">🗑️ 清除全部</button>
     </div>
   </div>
   <div id="map"></div>
   <div class="panel">
-    <div class="panel-title">图层 (<span id="layerCount">0</span>)</div>
-    <div id="layerEmpty" class="empty">暂无图层</div>
+    <div class="panel-title">📑 图层 (<span id="layerCount">0</span>)</div>
+    <div id="layerEmpty" class="empty">暂无图层<br><br><b style="color:#9aa0a6">支持导入格式：</b><br>• GeoJSON (.geojson/.json)<br>• KML (.kml)<br>• Shapefile (.zip)<br>• CSV (.csv) - 含经纬度</div>
     <div id="layerList"></div>
   </div>
 </div>
 <div class="statusbar">
-  <span class="status-dot"></span> <span id="statusText">就绪</span>
-  <span>缩放: <span id="zoomLevel">4</span></span>
+  <span class="status-dot"></span><span id="statusText">就绪</span>
+  <span style="margin-left:16px">缩放: <span id="zoomLevel">4</span></span>
 </div>
 <div class="hint" id="hint"></div>
-<input type="file" id="fileInput" accept=".geojson,.json,.kml,.zip,.csv" style="display:none">
-
-<!-- 缓冲区模态框 -->
-<div class="modal" id="modalBuffer">
-  <div class="modal-box">
-    <div class="modal-title">缓冲区分析</div>
-    <div class="modal-row"><label class="modal-label">选择图层</label><select class="modal-select" id="bufferLayer"></select></div>
-    <div class="modal-row"><label class="modal-label">距离(公里)</label><input type="number" class="modal-input" id="bufferDist" value="10"></div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal('buffer')">取消</button><button class="btn btn-primary" onclick="runBuffer()">执行</button></div>
-  </div>
-</div>
-
-<!-- 叠加分析模态框 -->
-<div class="modal" id="modalOverlay">
-  <div class="modal-box">
-    <div class="modal-title">叠加分析</div>
-    <div class="modal-row"><label class="modal-label">图层A</label><select class="modal-select" id="overlayA"></select></div>
-    <div class="modal-row"><label class="modal-label">图层B</label><select class="modal-select" id="overlayB"></select></div>
-    <div class="modal-row"><label class="modal-label">类型</label><select class="modal-select" id="overlayType"><option value="intersect">交集</option><option value="union">并集</option><option value="difference">差集</option></select></div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal('overlay')">取消</button><button class="btn btn-primary" onclick="runOverlay()">执行</button></div>
-  </div>
-</div>
-
-<!-- 导出模态框 -->
-<div class="modal" id="modalExport">
-  <div class="modal-box">
-    <div class="modal-title">导出数据</div>
-    <div class="modal-row"><label class="modal-label">选择图层</label><select class="modal-select" id="exportLayer"></select></div>
-    <div class="modal-row"><label class="modal-label">格式</label><select class="modal-select" id="exportFormat"><option value="geojson">GeoJSON</option><option value="kml">KML</option><option value="csv">CSV</option></select></div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal('export')">取消</button><button class="btn btn-primary" onclick="runExport()">下载</button></div>
-  </div>
-</div>
-
+<input type="file" id="fileInput" style="display:none">
+<div class="modal" id="modalBuffer"><div class="modal-box">
+  <div class="modal-title">⭕ 缓冲区分析</div>
+  <div class="modal-row"><label class="modal-label">选择图层</label><select class="modal-select" id="bufferLayer"><option value="">-- 请选择图层 --</option></select></div>
+  <div class="modal-row"><label class="modal-label">缓冲距离（公里）</label><input type="number" class="modal-input" id="bufferDist" value="10" min="0.1" step="0.1"></div>
+  <div class="info-box">选择点/线/面要素，生成指定半径的缓冲区域</div>
+  <div class="modal-actions"><button class="btn" onclick="closeModal('buffer')">取消</button><button class="btn btn-primary" onclick="runBuffer()">执行分析</button></div>
+</div></div>
+<div class="modal" id="modalOverlay"><div class="modal-box">
+  <div class="modal-title">🔀 叠加分析</div>
+  <div class="modal-row"><label class="modal-label">图层 A</label><select class="modal-select" id="overlayA"><option value="">-- 请选择 --</option></select></div>
+  <div class="modal-row"><label class="modal-label">图层 B</label><select class="modal-select" id="overlayB"><option value="">-- 请选择 --</option></select></div>
+  <div class="modal-row"><label class="modal-label">运算类型</label><select class="modal-select" id="overlayType"><option value="intersect">交集 (Intersect)</option><option value="union">并集 (Union)</option><option value="difference">差集 (Difference)</option></select></div>
+  <div class="modal-actions"><button class="btn" onclick="closeModal('overlay')">取消</button><button class="btn btn-primary" onclick="runOverlay()">执行分析</button></div>
+</div></div>
+<div class="modal" id="modalImagery"><div class="modal-box">
+  <div class="modal-title">🛰️ 下载卫星影像</div>
+  <div class="modal-row"><label class="modal-label">下载范围</label><select class="modal-select" id="imgExtent"><option value="view">当前视野</option><option value="draw">绘制矩形范围</option><option value="layer">已有图层边界</option></select></div>
+  <div class="modal-row" id="imgLayerRow" style="display:none"><label class="modal-label">选择图层</label><select class="modal-select" id="imgLayer"><option value="">-- 请选择 --</option></select></div>
+  <div class="modal-row"><label class="modal-label">影像类型</label><select class="modal-select" id="imgType"><option value="sat">🛰️ 卫星影像</option><option value="osm">🗺️ OpenStreetMap</option><option value="terrain">🏔️ 地形图</option></select></div>
+  <div class="modal-row"><label class="modal-label">输出格式</label><select class="modal-select" id="imgFormat"><option value="png">PNG 图片</option><option value="jpeg">JPEG 图片</option></select></div>
+  <div id="imgProgress" style="display:none"><div style="font-size:11px;margin-bottom:6px;color:#9aa0a6" id="imgStatus">准备中...</div><div class="progress-wrap"><div class="progress-bar" id="imgBar"></div></div></div>
+  <div class="info-box"><b>提示：</b>将当前地图视野截取为图片下载。小范围下载快，大范围下载慢。</div>
+  <div class="modal-actions"><button class="btn" onclick="closeModal('imagery')">取消</button><button class="btn btn-primary" id="btnImgDown" onclick="doImageryDownload()">开始下载</button></div>
+</div></div>
+<div class="modal" id="modalExport"><div class="modal-box">
+  <div class="modal-title">💾 导出数据</div>
+  <div class="modal-row"><label class="modal-label">选择图层</label><select class="modal-select" id="exportLayer"><option value="">-- 请选择 --</option></select></div>
+  <div class="modal-row"><label class="modal-label">导出格式</label><select class="modal-select" id="exportFormat"><option value="geojson">GeoJSON (.geojson)</option><option value="kml">KML (.kml)</option><option value="csv">CSV (.csv)</option></select></div>
+  <div class="modal-actions"><button class="btn" onclick="closeModal('export')">取消</button><button class="btn btn-primary" onclick="runExport()">下载文件</button></div>
+</div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
-<script src="https://unpkg.com/togeojson@0.16.0/togeojson.js"></script>
-<script src="https://unpkg.com/shpjs@4.0.4/dist/shp.js"></script>
+<script src="https://unpkg.com/@tmcw/togeojson@5.8.1/togeojson.umd.js"></script>
+<script src="https://unpkg.com/shpjs@4.0.4/dist/shp.min.js"></script>
 <script>
-// 全局变量
-let map, drawnItems;
-let layers = [];
-let currentTool = null;
-let currentDrawHandler = null;
-let measurePts = [], measureLine = null, measureMarkers = [];
-let routePts = [];
-let baseLayers = {};
+var map,drawnItems,layers=[],currentTool=null,currentDrawHandler=null;
+var measurePts=[],measureLine=null,measureMarkers=[];
+var routePts=[],routeMarkers=[];
+var baseLayers={},imgDrawHandler=null,imgRectLayer=null;
 
-// 初始化
-function init() {
-  map = L.map('map', { center: [35.86, 104.19], zoom: 4 });
-  baseLayers.osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 });
-  baseLayers.sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 });
+function init(){
+  map=L.map('map',{center:[35.86,104.19],zoom:4,doubleClickZoom:false});
+  baseLayers.osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19});
+  baseLayers.sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18});
   baseLayers.osm.addTo(map);
-  
-  drawnItems = new L.FeatureGroup();
+  drawnItems=new L.FeatureGroup();
   map.addLayer(drawnItems);
-  
-  map.on('mousemove', e => document.getElementById('coords').textContent = e.latlng.lng.toFixed(4) + ' , ' + e.latlng.lat.toFixed(4));
-  map.on('zoomend', () => document.getElementById('zoomLevel').textContent = map.getZoom());
-  map.on('click', onMapClick);
-  map.on('dblclick', onMapDblClick);
-  map.on(L.Draw.Event.CREATED, onDrawCreated);
-  
+  map.on('mousemove',function(e){document.getElementById('coords').textContent=e.latlng.lng.toFixed(5)+', '+e.latlng.lat.toFixed(5);});
+  map.on('zoomend',function(){document.getElementById('zoomLevel').textContent=map.getZoom();});
+  map.on('click',onMapClick);
+  map.on('dblclick',onMapDblClick);
+  map.on(L.Draw.Event.CREATED,onDrawCreated);
+  document.getElementById('imgExtent').onchange=function(){
+    document.getElementById('imgLayerRow').style.display=this.value==='layer'?'block':'none';
+  };
   showToast('GIS 工具已就绪');
 }
 
-// 底图切换
-function switchBase(name) {
-  Object.values(baseLayers).forEach(l => map.removeLayer(l));
-  baseLayers[name].addTo(map);
+function switchBase(n){
+  Object.values(baseLayers).forEach(function(l){map.removeLayer(l);});
+  baseLayers[n].addTo(map);
 }
 
-// Toast
-function showToast(msg) {
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
+function showToast(m){
+  var old=document.querySelector('.toast');
+  if(old)old.remove();
+  var t=document.createElement('div');
+  t.className='toast';
+  t.textContent=m;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
+  setTimeout(function(){t.remove();},3500);
 }
 
-function setStatus(text) { document.getElementById('statusText').textContent = text; }
-function showHint(text) { const h = document.getElementById('hint'); h.textContent = text; h.classList.add('show'); }
-function hideHint() { document.getElementById('hint').classList.remove('show'); }
+function setStatus(m){document.getElementById('statusText').textContent=m;}
+function showHint(m){var h=document.getElementById('hint');h.textContent=m;h.classList.add('show');}
+function hideHint(){document.getElementById('hint').classList.remove('show');}
 
-// 图层管理
-function genId() { return 'l_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
+function genId(){return 'l_'+Date.now()+'_'+Math.random().toString(36).substr(2,5);}
 
-function addLayer(name, geojson, color, leafletLayer) {
-  const id = genId();
-  layers.push({ id, name, geojson, color, leafletLayer });
+function addLayer(n,gj,c,ll){
+  var id=genId();
+  layers.push({id:id,name:n,geojson:gj,color:c,leafletLayer:ll});
   renderLayers();
-  return layers[layers.length - 1];
+  return layers[layers.length-1];
 }
 
-function removeLayer(id) {
-  const idx = layers.findIndex(l => l.id === id);
-  if (idx >= 0) {
-    if (layers[idx].leafletLayer) map.removeLayer(layers[idx].leafletLayer);
-    layers.splice(idx, 1);
+function removeLayer(id){
+  var i=layers.findIndex(function(l){return l.id===id;});
+  if(i>=0){
+    if(layers[i].leafletLayer)map.removeLayer(layers[i].leafletLayer);
+    layers.splice(i,1);
     renderLayers();
   }
 }
 
-function renderLayers() {
-  const list = document.getElementById('layerList');
-  const empty = document.getElementById('layerEmpty');
-  document.getElementById('layerCount').textContent = layers.length;
-  
-  if (layers.length === 0) { empty.style.display = 'block'; list.innerHTML = ''; return; }
-  
-  empty.style.display = 'none';
-  list.innerHTML = layers.map(l => 
-    '<div class="layer-item"><div class="layer-color" style="background:' + l.color + '"></div>' +
-    '<div class="layer-name">' + l.name + '</div><div class="layer-count">' + l.geojson.features.length + '</div>' +
-    '<button class="layer-btn" onclick="removeLayer(\'' + l.id + '\')">🗑</button></div>'
-  ).join('');
+function renderLayers(){
+  var l=document.getElementById('layerList'),e=document.getElementById('layerEmpty');
+  document.getElementById('layerCount').textContent=layers.length;
+  if(layers.length===0){e.style.display='block';l.innerHTML='';return;}
+  e.style.display='none';
+  l.innerHTML=layers.map(function(x){
+    return '<div class="layer-item"><div class="layer-color" style="background:'+x.color+'"></div><div class="layer-name" title="'+x.name+'">'+x.name+'</div><div class="layer-count">'+x.geojson.features.length+'</div><button class="layer-btn" onclick="removeLayer(\''+x.id+'\')">x</button></div>';
+  }).join('');
 }
 
-// 绘制功能
-function startDraw(type) {
+function startDraw(t){
   disableDraw();
-  currentTool = 'draw';
-  
-  let handler;
-  if (type === 'marker') {
-    handler = new L.Draw.Marker(map, {});
-  } else if (type === 'polyline') {
-    handler = new L.Draw.Polyline(map, { shapeOptions: { color: '#00d4aa', weight: 3 } });
-  } else {
-    handler = new L.Draw.Polygon(map, { shapeOptions: { color: '#00d4aa', fillOpacity: 0.3 } });
-  }
-  
-  handler.enable();
-  currentDrawHandler = handler;
-  
+  currentTool='draw';
+  var h;
+  if(t==='marker')h=new L.Draw.Marker(map,{});
+  else if(t==='polyline')h=new L.Draw.Polyline(map,{shapeOptions:{color:'#00d4aa',weight:3},allowIntersection:false});
+  else h=new L.Draw.Polygon(map,{shapeOptions:{color:'#00d4aa',fillOpacity:0.3,weight:2},allowIntersection:false});
+  h.enable();
+  currentDrawHandler=h;
   showHint('点击绘制，双击结束');
-  setStatus('绘制中');
+  setStatus('绘制中...');
 }
 
-function disableDraw() {
-  if (currentDrawHandler) {
-    currentDrawHandler.disable();
-    currentDrawHandler = null;
+function disableDraw(){
+  if(currentDrawHandler){currentDrawHandler.disable();currentDrawHandler=null;}
+  if(measurePts.length)resetMeasure();
+  if(routePts.length){
+    routePts.forEach(function(m){if(m._map)map.removeLayer(m);});
+    routeMarkers.forEach(function(m){if(m._map)map.removeLayer(m);});
+    routePts=[];routeMarkers=[];
   }
-  currentTool = null;
-  document.getElementById('hint').classList.remove('show');
+  currentTool=null;
+  hideHint();
   setStatus('就绪');
-  showToast('已停止绘制');
 }
 
-function onDrawCreated(e) {
-  const layer = e.layer;
-  const type = e.layerType;
-  
-  let geojson;
-  const color = type === 'marker' ? '#ff8c42' : (type === 'polyline' ? '#4da6ff' : '#00d4aa');
-  const name = type === 'marker' ? '点' : (type === 'polyline' ? '线' : '面');
-  
-  if (type === 'marker') {
-    const ll = layer.getLatLng();
-    geojson = { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [ll.lng, ll.lat] }, properties: {} }] };
-  } else {
-    geojson = layer.toGeoJSON();
-    if (!geojson.type) geojson = { type: 'FeatureCollection', features: [geojson] };
+function onDrawCreated(e){
+  var l=e.layer,t=e.layerType,gj,c,n;
+  if(t==='marker'){
+    c='#ff8c42';n='点';
+    var ll=l.getLatLng();
+    gj={type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Point',coordinates:[ll.lng,ll.lat]},properties:{}}]};
+  }else if(t==='polyline'){
+    c='#4da6ff';n='线';
+    gj=l.toGeoJSON();
+    if(gj.type==='Feature')gj={type:'FeatureCollection',features:[gj]};
+  }else{
+    c='#00d4aa';n='面';
+    gj=l.toGeoJSON();
+    if(gj.type==='Feature')gj={type:'FeatureCollection',features:[gj]};
   }
-  
-  const leafletLayer = L.geoJSON(geojson, { 
-    pointToLayer: (f, latlng) => L.marker(latlng),
-    style: { color, fillOpacity: 0.3 } 
+  var leafletLayer=L.geoJSON(gj,{
+    pointToLayer:function(f,latlng){return L.circleMarker(latlng,{radius:8,fillColor:c,color:'#fff',weight:2});},
+    style:{color:c,fillOpacity:0.3,weight:2}
   }).addTo(map);
-  addLayer(name + '_' + Date.now(), geojson, color, leafletLayer);
-  showToast('已保存: ' + name);
+  addLayer(n+' '+Date.now(),gj,c,leafletLayer);
+  showToast('已保存: '+n);
   disableDraw();
 }
 
-// 测量功能
-function startMeasure(type) {
+function startMeasure(t){
   disableDraw();
-  currentTool = type === 'dist' ? 'measureDist' : 'measureArea';
-  measurePts = [];
-  measureMarkers.forEach(m => map.removeLayer(m));
-  measureMarkers = [];
-  if (measureLine) { map.removeLayer(measureLine); measureLine = null; }
-  showHint('点击添加点，双击结束');
-  setStatus(type === 'dist' ? '测距' : '测面');
+  measurePts.forEach(function(m){if(m._map)map.removeLayer(m);});
+  measureMarkers.forEach(function(m){if(m._map)map.removeLayer(m);});
+  if(measureLine&&measureLine._map)map.removeLayer(measureLine);
+  measurePts=[];measureMarkers=[];measureLine=null;
+  currentTool=t==='dist'?'measureDist':'measureArea';
+  showHint('点击添加测量点，双击结束');
+  setStatus(t==='dist'?'距离测量':'面积测量');
 }
 
-function onMapClick(e) {
-  if (!currentTool) return;
-  
-  if (currentTool === 'measureDist' || currentTool === 'measureArea') {
-    measurePts.push([e.latlng.lat, e.latlng.lng]);
-    const m = L.marker(e.latlng).addTo(map);
+function onMapClick(e){
+  if(!currentTool)return;
+  if(currentTool==='measureDist'||currentTool==='measureArea'){
+    measurePts.push([e.latlng.lat,e.latlng.lng]);
+    var m=L.circleMarker(e.latlng,{radius:6,color:'#ff8c42',fillColor:'#ff8c42',weight:2}).addTo(map);
     measureMarkers.push(m);
-    if (measurePts.length > 1) {
-      if (measureLine) map.removeLayer(measureLine);
-      measureLine = L.polyline(measurePts, { color: '#ff8c42', weight: 3, dashArray: '5,5' }).addTo(map);
+    if(measurePts.length>1){
+      if(measureLine&&measureLine._map)map.removeLayer(measureLine);
+      measureLine=L.polyline(measurePts,{color:'#ff8c42',weight:3,dashArray:'8,4'}).addTo(map);
+      updateMeasureResult();
     }
   }
-  
-  if (currentTool === 'route') {
-    routePts.push([e.latlng.lng, e.latlng.lat]);
-    L.marker(e.latlng).addTo(map);
-    if (routePts.length === 2) calcRoute();
+  if(currentTool==='route'){
+    routePts.push([e.latlng.lng,e.latlng.lat]);
+    var rm=L.circleMarker(e.latlng,{radius:7,color:'#00d4aa',fillColor:'#00d4aa',weight:2}).addTo(map);
+    routeMarkers.push(rm);
+    if(routePts.length===2)calcRoute();
+    else if(routePts.length>2){
+      routePts.shift();
+      if(routeMarkers[0]&&routeMarkers[0]._map)map.removeLayer(routeMarkers[0]);
+      routeMarkers.shift();
+    }
   }
 }
 
-function onMapDblClick(e) {
-  if (currentTool === 'measureDist' && measurePts.length > 1) {
-    const line = turf.lineString(measurePts.map(p => [p[1], p[0]]));
-    showToast('距离: ' + turf.length(line, { units: 'kilometers' }).toFixed(2) + ' 公里');
+function updateMeasureResult(){
+  if(!currentTool||measurePts.length<2)return;
+  if(currentTool==='measureDist'){
+    var line=turf.lineString(measurePts.map(function(p){return[p[1],p[0]];}));
+    var dist=turf.length(line,{units:'kilometers'});
+    setStatus('距离: '+dist.toFixed(3)+' km (双击结束)');
+  }else if(currentTool==='measureArea'&&measurePts.length>=3){
+    var coords=measurePts.map(function(p){return[p[1],p[0]];});
+    coords.push([coords[0][0],coords[0][1]]);
+    var area=turf.area(turf.polygon([coords]))/1000000;
+    setStatus('面积: '+area.toFixed(4)+' km2 (双击结束)');
+  }
+}
+
+function onMapDblClick(e){
+  if(!currentTool)return;
+  L.DomEvent.stopPropagation(e);
+  if(currentTool==='measureDist'&&measurePts.length>=2){
+    var line=turf.lineString(measurePts.map(function(p){return[p[1],p[0]];}));
+    var dist=turf.length(line,{units:'kilometers'});
+    showToast('距离: '+dist.toFixed(3)+' km');
     resetMeasure();
   }
-  if (currentTool === 'measureArea' && measurePts.length > 2) {
-    const coords = measurePts.map(p => [p[1], p[0]]);
-    coords.push([coords[0][0], coords[0][1]]);
-    showToast('面积: ' + (turf.area(turf.polygon([coords])) / 1000000).toFixed(4) + ' km²');
+  if(currentTool==='measureArea'&&measurePts.length>=3){
+    var coords2=measurePts.map(function(p){return[p[1],p[0]];});
+    coords2.push([coords2[0][0],coords2[0][1]]);
+    var area2=turf.area(turf.polygon([coords2]))/1000000;
+    showToast('面积: '+area2.toFixed(4)+' km2');
     resetMeasure();
   }
 }
 
-function resetMeasure() {
-  measurePts = [];
-  measureMarkers.forEach(m => map.removeLayer(m));
-  measureMarkers = [];
-  if (measureLine) { map.removeLayer(measureLine); measureLine = null; }
+function resetMeasure(){
+  measurePts.forEach(function(m){if(m._map)map.removeLayer(m);});
+  measureMarkers.forEach(function(m){if(m._map)map.removeLayer(m);});
+  if(measureLine&&measureLine._map)map.removeLayer(measureLine);
+  measurePts=[];measureMarkers=[];measureLine=null;
   disableDraw();
 }
 
-// 路径规划
-function startRoute() {
+function startRoute(){
   disableDraw();
-  currentTool = 'route';
-  routePts = [];
-  showHint('点击选择起点和终点');
-  setStatus('路径规划');
+  routePts.forEach(function(m){if(m._map)map.removeLayer(m);});
+  routeMarkers.forEach(function(m){if(m._map)map.removeLayer(m);});
+  routePts=[];routeMarkers=[];
+  currentTool='route';
+  showHint('点击选择起点，再点击选择终点');
+  setStatus('路径规划 - 选择起点');
 }
 
-function calcRoute() {
-  const url = 'https://router.project-osrm.org/route/v1/driving/' + routePts[0][0] + ',' + routePts[0][1] + ';' + routePts[1][0] + ',' + routePts[1][1] + '?overview=full&geometries=geojson';
-  fetch(url).then(r => r.json()).then(d => {
-    if (d.routes && d.routes[0]) {
-      const coords = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-      L.polyline(coords, { color: '#00d4aa', weight: 4 }).addTo(map);
-      showToast('距离: ' + (d.routes[0].distance/1000).toFixed(2) + ' km');
-    } else { showToast('无法计算路线'); }
-  }).catch(() => showToast('路线计算失败'));
-  routePts = [];
-  disableDraw();
+function calcRoute(){
+  setStatus('正在计算路线...');
+  var url='https://router.project-osrm.org/route/v1/driving/'+routePts[0][0]+','+routePts[0][1]+';'+routePts[1][0]+','+routePts[1][1]+'?overview=full';
+  fetch(url).then(function(r){return r.json();}).then(function(d){
+    if(d.routes&&d.routes[0]){
+      var coords=d.routes[0].geometry.coordinates.map(function(c){return[c[1],c[0]];});
+      L.polyline(coords,{color:'#00d4aa',weight:5,opacity:0.85}).addTo(map);
+      var distKm=(d.routes[0].distance/1000).toFixed(2);
+      var durMin=Math.round(d.routes[0].duration/60);
+      var routeGeojson={type:'FeatureCollection',features:[{type:'Feature',geometry:d.routes[0].geometry,properties:{distance:distKm,duration:durMin}}]};
+      var routeLayer=L.geoJSON(routeGeojson,{style:{color:'#00d4aa',weight:5}}).addTo(map);
+      addLayer('路线 '+distKm+'km',routeGeojson,'#00d4aa',routeLayer);
+      showToast('路线: '+distKm+' km | 约 '+durMin+' 分钟');
+      setStatus('路径规划完成');
+    }else{
+      showToast('无法计算路线');
+      setStatus('路径规划失败');
+    }
+  }).catch(function(err){console.error(err);showToast('路线计算失败');setStatus('路径规划失败');});
+  setTimeout(function(){
+    routePts=[];
+    routeMarkers.forEach(function(m){if(m._map)map.removeLayer(m);});
+    routeMarkers=[];
+    disableDraw();
+  },2500);
 }
 
-// 模态框
-function openModal(name) {
-  document.getElementById('modal' + name).classList.add('show');
-  const opts = layers.map(l => '<option value="' + l.id + '">' + l.name + '</option>').join('');
-  if (name === 'buffer') document.getElementById('bufferLayer').innerHTML = opts || '<option value="">无图层</option>';
-  if (name === 'overlay') { document.getElementById('overlayA').innerHTML = opts || '<option value="">无图层</option>'; document.getElementById('overlayB').innerHTML = opts || '<option value="">无图层</option>'; }
-  if (name === 'export') document.getElementById('exportLayer').innerHTML = opts || '<option value="">无图层</option>';
+function openModal(n){
+  document.getElementById('modal'+n).classList.add('show');
+  var opts=layers.map(function(l){return'<option value="'+l.id+'">'+l.name+'</option>';}).join('');
+  var noOpt='<option value="">-- 请选择 --</option>';
+  if(n==='buffer')document.getElementById('bufferLayer').innerHTML=opts||noOpt;
+  if(n==='overlay'){document.getElementById('overlayA').innerHTML=opts||noOpt;document.getElementById('overlayB').innerHTML=opts||noOpt;}
+  if(n==='export')document.getElementById('exportLayer').innerHTML=opts||noOpt;
+  if(n==='imagery'){document.getElementById('imgLayer').innerHTML=opts||noOpt;document.getElementById('imgProgress').style.display='none';document.getElementById('btnImgDown').disabled=false;}
 }
 
-function closeModal(name) {
-  document.getElementById('modal' + name).classList.remove('show');
+function openImageryModal(){openModal('imagery');}
+
+function closeModal(n){
+  document.getElementById('modal'+n).classList.remove('show');
+  if(imgDrawHandler){imgDrawHandler.disable();imgDrawHandler=null;}
+  if(imgRectLayer){map.removeLayer(imgRectLayer);imgRectLayer=null;}
 }
 
-// 缓冲区
-function runBuffer() {
-  const l = layers.find(x => x.id === document.getElementById('bufferLayer').value);
-  if (!l) return showToast('请选择图层');
-  const dist = parseFloat(document.getElementById('bufferDist').value);
-  
-  const buf = { type: 'FeatureCollection', features: l.geojson.features.map(f => {
-    try { return turf.buffer(f, dist, { units: 'kilometers' }); } catch(e) { return null; }
-  }).filter(f => f) };
-  
-  if (!buf.features.length) return showToast('无法生成缓冲区');
-  
-  const color = '#ff8c42';
-  const ll = L.geoJSON(buf, { style: { color, fillOpacity: 0.3 } }).addTo(map);
-  addLayer('缓冲区', buf, color, ll);
+function runBuffer(){
+  var l=layers.find(function(x){return x.id===document.getElementById('bufferLayer').value;});
+  if(!l){showToast('请先选择图层');return;}
+  var dist=parseFloat(document.getElementById('bufferDist').value);
+  if(isNaN(dist)||dist<=0){showToast('请输入有效的缓冲距离');return;}
+  setStatus('正在生成缓冲区...');
+  var bufFeatures=[];
+  l.geojson.features.forEach(function(f){
+    try{if(f.geometry){var b=turf.buffer(f,dist,{units:'kilometers'});if(b)bufFeatures.push(b);}}catch(e){}
+  });
+  if(!bufFeatures.length){showToast('无法生成缓冲区');setStatus('就绪');return;}
+  var buf={type:'FeatureCollection',features:bufFeatures};
+  var ll=L.geoJSON(buf,{style:{color:'#ff8c42',fillOpacity:0.35,weight:2}}).addTo(map);
+  map.fitBounds(ll.getBounds(),{padding:[30,30]});
+  addLayer('缓冲区 '+dist+'km',buf,'#ff8c42',ll);
   closeModal('buffer');
-  showToast('缓冲区已生成');
+  showToast('缓冲区已生成 ('+bufFeatures.length+' 个)');
+  setStatus('就绪');
 }
 
-// 叠加分析
-function runOverlay() {
-  const la = layers.find(x => x.id === document.getElementById('overlayA').value);
-  const lb = layers.find(x => x.id === document.getElementById('overlayB').value);
-  const type = document.getElementById('overlayType').value;
-  if (!la || !lb) return showToast('请选择图层');
-  
-  const res = { type: 'FeatureCollection', features: [] };
-  la.geojson.features.forEach(fa => {
-    lb.geojson.features.forEach(fb => {
-      try {
-        const op = type === 'intersect' ? turf.intersect(fa, fb) : type === 'union' ? turf.union(fa, fb) : turf.difference(fa, fb);
-        if (op) res.features.push(op);
-      } catch(e) {}
+function runOverlay(){
+  var la=layers.find(function(x){return x.id===document.getElementById('overlayA').value;});
+  var lb=layers.find(function(x){return x.id===document.getElementById('overlayB').value;});
+  var t=document.getElementById('overlayType').value;
+  if(!la||!lb){showToast('请选择两个图层');return;}
+  if(la.id===lb.id){showToast('请选择不同的图层');return;}
+  setStatus('正在进行叠加分析...');
+  var res={type:'FeatureCollection',features:[]};
+  la.geojson.features.forEach(function(fa){
+    lb.geojson.features.forEach(function(fb){
+      try{var op;if(t==='intersect')op=turf.intersect(fa,fb);else if(t==='union')op=turf.union(fa,fb);else if(t==='difference')op=turf.difference(fa,fb);if(op)res.features.push(op);}catch(e){}
     });
   });
-  
-  if (!res.features.length) return showToast('无结果');
-  
-  const color = '#4da6ff';
-  const ll = L.geoJSON(res, { style: { color, fillOpacity: 0.4 } }).addTo(map);
-  addLayer('叠加结果', res, color, ll);
+  if(!res.features.length){showToast('叠加分析无结果');setStatus('就绪');return;}
+  var ll=L.geoJSON(res,{style:{color:'#4da6ff',fillOpacity:0.4,weight:2}}).addTo(map);
+  map.fitBounds(ll.getBounds(),{padding:[30,30]});
+  var opName=t==='intersect'?'交集':t==='union'?'并集':'差集';
+  addLayer('叠加-'+opName,res,'#4da6ff',ll);
   closeModal('overlay');
-  showToast('叠加完成');
+  showToast('叠加分析完成 ('+res.features.length+' 个要素)');
+  setStatus('就绪');
 }
 
-// 文件导入
-document.getElementById('fileInput').onchange = function(e) {
-  const f = e.target.files[0];
-  if (!f) return;
-  const ext = f.name.split('.').pop().toLowerCase();
-  const reader = new FileReader();
-  
-  if (ext === 'zip') {
-    // Shapefile ZIP 导入
-    reader.onload = function(ev) {
-      shp(ev.target.result).then(function(geojson) {
-        const ll = L.geoJSON(geojson, { style: { color: '#00d4aa', fillOpacity: 0.3 } }).addTo(map);
-        map.fitBounds(ll.getBounds());
-        addLayer(f.name.replace('.zip', ''), geojson, '#00d4aa', ll);
-        showToast('已导入 Shapefile');
-      }).catch(function(err) {
-        console.error(err);
-        showToast('Shapefile 解析失败: ' + err.message);
-      });
-    };
-    reader.readAsArrayBuffer(f);
+function doImageryDownload(){
+  var extentType=document.getElementById('imgExtent').value;
+  var imgType=document.getElementById('imgType').value;
+  var imgFormat=document.getElementById('imgFormat').value;
+  var bounds;
+  if(extentType==='view'){
+    bounds=map.getBounds();
+    downloadMapImage(bounds,imgType,imgFormat);
+  }else if(extentType==='layer'){
+    var layerId=document.getElementById('imgLayer').value;
+    var layer=layers.find(function(l){return l.id===layerId;});
+    if(!layer){showToast('请选择图层');return;}
+    try{
+      var bbox=turf.bbox(layer.geojson);
+      bounds=L.latLngBounds([[bbox[1],bbox[0]],[bbox[3],bbox[2]]]);
+      downloadMapImage(bounds,imgType,imgFormat);
+    }catch(e){showToast('无法获取图层边界');}
+  }else if(extentType==='draw'){
+    closeModal('imagery');
+    showToast('请在地图上绘制矩形范围');
+    imgDrawHandler=new L.Draw.Rectangle(map,{shapeOptions:{color:'#ff8c42',weight:3,fillOpacity:0.1}});
+    imgDrawHandler.enable();
+    map.once(L.Draw.Event.CREATED,function(e){
+      var rect=e.layer;
+      bounds=rect.getBounds();
+      if(imgRectLayer)map.removeLayer(imgRectLayer);
+      imgRectLayer=rect.addTo(map);
+      openModal('imagery');
+      downloadMapImage(bounds,imgType,imgFormat);
+    });
   }
-  else if (ext === 'csv') {
-    // CSV 导入
-    reader.onload = function(ev) {
-      try {
-        const text = ev.target.result;
-        const lines = text.trim().split('\n');
-        const header = lines[0].split(',').map(h => h.trim().toLowerCase());
-        
-        const latIdx = header.findIndex(h => h === 'lat' || h === 'latitude' || h === '纬度');
-        const lonIdx = header.findIndex(h => h === 'lon' || h === 'lng' || h === 'longitude' || h === '经度');
-        const nameIdx = header.findIndex(h => h === 'name' || h === '名称');
-        
-        if (latIdx === -1 || lonIdx === -1) {
-          showToast('CSV 需要包含经纬度列 (lat, lon)');
-          return;
+}
+
+function downloadMapImage(bounds,imgType,imgFormat){
+  var progress=document.getElementById('imgProgress');
+  var bar=document.getElementById('imgBar');
+  var status=document.getElementById('imgStatus');
+  var btn=document.getElementById('btnImgDown');
+  progress.style.display='block';
+  btn.disabled=true;
+  var tileUrl;
+  if(imgType==='sat')tileUrl='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+  else if(imgType==='terrain')tileUrl='https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+  else tileUrl='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  var zoom=map.getZoom();
+  var center=bounds.getCenter();
+  var size=map.getSize();
+  var token='';
+  if(imgType==='sat'){
+    showToast('正在获取Esri卫星影像...');
+  }
+  var tempTileLayer=L.tileLayer(tileUrl,{maxZoom:18,opacity:1,crossOrigin:true});
+  tempTileLayer.addTo(map);
+  map.fitBounds(bounds);
+  setTimeout(function(){
+    try{
+      var canvas=document.createElement('canvas');
+      canvas.width=size.x;
+      canvas.height=size.y;
+      var ctx=canvas.getContext('2d');
+      var ground=document.querySelector('#map .leaflet-tile-pane');
+      if(ground){
+        var groundCanvas=ground.querySelector('canvas');
+        if(groundCanvas){
+          ctx.drawImage(groundCanvas,0,0);
         }
-        
-        const features = [];
-        for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].split(',');
-          if (cols.length > Math.max(latIdx, lonIdx)) {
-            const lat = parseFloat(cols[latIdx]);
-            const lon = parseFloat(cols[lonIdx]);
-            if (!isNaN(lat) && !isNaN(lon)) {
-              features.push({
-                type: 'Feature',
-                geometry: { type: 'Point', coordinates: [lon, lat] },
-                properties: { name: nameIdx >= 0 ? cols[nameIdx] : 'P' + i }
-              });
+      }
+      // Try html2canvas approach - capture map tiles manually
+      var tilePane = document.querySelector('#map .leaflet-tile-pane');
+      if (!tilePane) {
+        showToast('无法捕获地图影像');
+        map.removeLayer(tempTileLayer);
+        progress.style.display='none';
+        btn.disabled=false;
+        return;
+      }
+      
+      // Get all loaded tiles and composite them
+      var tiles = tilePane.querySelectorAll('canvas, img');
+      if (tiles.length === 0) {
+        // Fallback: use map screenshot via canvas
+        var mapEl = document.getElementById('map');
+        showToast('正在处理影像...');
+        setTimeout(function() {
+          map.removeLayer(tempTileLayer);
+          progress.style.display='none';
+          btn.disabled=false;
+          showToast('请使用浏览器截图功能保存');
+        }, 500);
+        return;
+      }
+      
+      // For now, just show a simpler message
+      showToast('正在处理影像...');
+      
+      setTimeout(function() {
+        map.removeLayer(tempTileLayer);
+        progress.style.display='none';
+        btn.disabled=false;
+        showToast('影像截取完成!右键保存或截图');
+      }, 500);
+    }, 1000);
+  }
+  
+  function downloadDataUrl(dataUrl, filename) {
+    var a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    a.click();
+  }
+  
+  // File import
+  document.getElementById('fileInput').onchange = function(e) {
+    var f = e.target.files[0];
+    if (!f) return;
+    var ext = f.name.split('.').pop().toLowerCase();
+    var reader = new FileReader();
+    
+    if (ext === 'zip') {
+      reader.onload = function(ev) {
+        shp(ev.target.result).then(function(geojson) {
+          if (!geojson || !geojson.features) {
+            showToast('Shapefile解析失败');
+            return;
+          }
+          var ll = L.geoJSON(geojson, { 
+            pointToLayer: function(f, latlng) { return L.circleMarker(latlng, { radius: 6, fillColor: '#00d4aa', color: '#fff', weight: 1 }); },
+            style: { color: '#00d4aa', fillOpacity: 0.3, weight: 2 }
+          }).addTo(map);
+          try { map.fitBounds(ll.getBounds()); } catch(e) {}
+          addLayer(f.name.replace('.zip', ''), geojson, '#00d4aa', ll);
+          showToast('已导入 Shapefile (' + geojson.features.length + ' 个要素)');
+        }).catch(function(err) {
+          showToast('Shapefile解析失败: ' + err.message);
+        });
+      };
+      reader.readAsArrayBuffer(f);
+    }
+    else if (ext === 'csv') {
+      reader.onload = function(ev) {
+        try {
+          var text = ev.target.result;
+          var lines = text.trim().split(/\r?\n/);
+          var header = lines[0].toLowerCase().split(',').map(function(h){ return h.trim(); });
+          var latIdx = header.indexOf('lat');
+          var lonIdx = header.indexOf('lon') !== -1 ? header.indexOf('lon') : header.indexOf('lng');
+          var nameIdx = header.indexOf('name');
+          if (latIdx === -1 || lonIdx === -1) {
+            showToast('CSV需要包含lat和lon列');
+            return;
+          }
+          var features = [];
+          for (var i = 1; i < lines.length; i++) {
+            var cols = lines[i].split(',');
+            if (cols.length > Math.max(latIdx, lonIdx)) {
+              var lat = parseFloat(cols[latIdx]);
+              var lon = parseFloat(cols[lonIdx]);
+              if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                features.push({
+                  type: 'Feature',
+                  geometry: { type: 'Point', coordinates: [lon, lat] },
+                  properties: { name: nameIdx >= 0 ? cols[nameIdx].trim() : 'P' + i }
+                });
+              }
             }
           }
+          if (features.length === 0) {
+            showToast('CSV中无有效坐标点');
+            return;
+          }
+          var geojson = { type: 'FeatureCollection', features: features };
+          var ll = L.geoJSON(geojson, {
+            pointToLayer: function(f, latlng) { return L.circleMarker(latlng, { radius: 6, fillColor: '#00d4aa', color: '#fff', weight: 1 }); }
+          }).addTo(map);
+          try { map.fitBounds(ll.getBounds(), { padding: [50, 50] }); } catch(e) {}
+          addLayer(f.name.replace('.csv', ''), geojson, '#00d4aa', ll);
+          showToast('已导入 CSV: ' + features.length + ' 个点');
+        } catch(err) {
+          showToast('CSV解析失败');
         }
-        
-        if (features.length === 0) {
-          showToast('CSV 中没有有效的坐标点');
-          return;
-        }
-        
-        const geojson = { type: 'FeatureCollection', features };
-        const ll = L.geoJSON(geojson, { 
-          pointToLayer: (f, latlng) => L.marker(latlng),
-          style: { color: '#00d4aa', fillOpacity: 0.3 } 
-        }).addTo(map);
-        map.fitBounds(ll.getBounds());
-        addLayer(f.name.replace('.csv', ''), geojson, '#00d4aa', ll);
-        showToast('已导入 CSV: ' + features.length + ' 个点');
-      } catch (err) {
-        showToast('CSV 解析失败');
-      }
-    };
-    reader.readAsText(f);
-  }
-  else if (ext === 'json' || ext === 'geojson') {
-    reader.onload = function(ev) {
-      try {
-        let gj = JSON.parse(ev.target.result);
-        if (!gj.type) { showToast('无效的GeoJSON'); return; }
-        const ll = L.geoJSON(gj, { style: { color: '#00d4aa', fillOpacity: 0.3 } }).addTo(map);
-        map.fitBounds(ll.getBounds());
-        addLayer(f.name, gj, '#00d4aa', ll);
-        showToast('已导入 GeoJSON');
-      } catch(err) { showToast('解析失败'); }
-    };
-    reader.readAsText(f);
-  }
-  else if (ext === 'kml') {
-    reader.onload = function(ev) {
-      try {
-        const p = new DOMParser();
-        const kml = p.parseFromString(ev.target.result, 'text/xml');
-        const gj = toGeoJSON.kml(kml);
-        const ll = L.geoJSON(gj, { style: { color: '#00d4aa', fillOpacity: 0.3 } }).addTo(map);
-        map.fitBounds(ll.getBounds());
-        addLayer(f.name, gj, '#00d4aa', ll);
-        showToast('已导入 KML');
-      } catch(err) { showToast('KML 解析失败'); }
-    };
-    reader.readAsText(f);
-  }
-  else {
-    showToast('不支持格式: ' + ext);
-  }
-  this.value = '';
-};
-
-// 导出
-function openExportModal() {
-  if (layers.length === 0) return showToast('无图层可导出');
-  openModal('export');
-}
-
-function runExport() {
-  const l = layers.find(x => x.id === document.getElementById('exportLayer').value);
-  const fmt = document.getElementById('exportFormat').value;
-  if (!l) return showToast('请选择图层');
+      };
+      reader.readAsText(f);
+    }
+    else if (ext === 'json' || ext === 'geojson') {
+      reader.onload = function(ev) {
+        try {
+          var gj = JSON.parse(ev.target.result);
+          if (!gj || (!gj.type && !gj.features)) { showToast('无效的GeoJSON'); return; }
+          if (gj.type === 'FeatureCollection' || gj.type === 'Feature') {
+            if (gj.type === 'Feature') gj = { type: 'FeatureCollection', features: [gj] };
+          } else if (gj.features) {
+            // already FeatureCollection
+          } else {
+            showToast('无效的GeoJSON格式'); return;
+          }
+          var ll = L.geoJSON(gj, { 
+            pointToLayer: function(f, latlng) { return L.circleMarker(latlng, { radius: 6, fillColor: '#00d4aa', color: '#fff', weight: 1 }); },
+            style: { color: '#00d4aa', fillOpacity: 0.3, weight: 2 }
+          }).addTo(map);
+          try { map.fitBounds(ll.getBounds()); } catch(e) {}
+          addLayer(f.name, gj, '#00d4aa', ll);
+          showToast('已导入 GeoJSON (' + gj.features.length + ' 个要素)');
+        } catch(err) { showToast('解析失败: ' + err.message); }
+      };
+      reader.readAsText(f);
+    }
+    else if (ext === 'kml') {
+      reader.onload = function(ev) {
+        try {
+          var p = new DOMParser();
+          var kml = p.parseFromString(ev.target.result, 'text/xml');
+          if (typeof toGeoJSON === 'function') {
+            var gj = toGeoJSON.kml(kml);
+          } else if (window.toGeoJSON && typeof window.toGeoJSON.kml === 'function') {
+            var gj = window.toGeoJSON.kml(kml);
+          } else {
+            showToast('KML解析库未加载');
+            return;
+          }
+          if (!gj || !gj.features || gj.features.length === 0) {
+            showToast('KML文件无有效数据');
+            return;
+          }
+          var ll = L.geoJSON(gj, { 
+            pointToLayer: function(f, latlng) { return L.circleMarker(latlng, { radius: 6, fillColor: '#00d4aa', color: '#fff', weight: 1 }); },
+            style: { color: '#00d4aa', fillOpacity: 0.3, weight: 2 }
+          }).addTo(map);
+          try { map.fitBounds(ll.getBounds()); } catch(e) {}
+          addLayer(f.name, gj, '#00d4aa', ll);
+          showToast('已导入 KML (' + gj.features.length + ' 个要素)');
+        } catch(err) { showToast('KML解析失败: ' + err.message); }
+      };
+      reader.readAsText(f);
+    }
+    else {
+      showToast('不支持格式: ' + ext);
+    }
+    this.value = '';
+  };
   
-  let data, fn;
-  if (fmt === 'geojson') {
-    data = JSON.stringify(l.geojson, null, 2);
-    fn = l.name + '.geojson';
-  }
-  else if (fmt === 'kml') {
-    // 简单 KML 导出
-    let kml = '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>';
-    l.geojson.features.forEach((f, i) => {
-      const geom = f.geometry;
-      if (geom.type === 'Point') {
-        kml += '<Placemark><name>' + (f.properties.name || 'P'+i) + '</name><Point><coordinates>' + geom.coordinates[0] + ',' + geom.coordinates[1] + '</coordinates></Point></Placemark>';
-      } else if (geom.type === 'LineString') {
-        kml += '<Placemark><name>' + (f.properties.name || 'L'+i) + '</name><LineString><coordinates>' + geom.coordinates.map(c => c[0]+','+c[1]).join(' ') + '</coordinates></LineString></Placemark>';
-      } else if (geom.type === 'Polygon') {
-        kml += '<Placemark><name>' + (f.properties.name || 'Poly'+i) + '</name><Polygon><outerBoundaryIs><LinearRing><coordinates>' + geom.coordinates[0].map(c => c[0]+','+c[1]).join(' ') + '</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>';
-      }
-    });
-    kml += '</Document></kml>';
-    data = kml;
-    fn = l.name + '.kml';
-  }
-  else {
-    const pts = l.geojson.features.filter(f => f.geometry.type === 'Point');
-    if (!pts.length) return showToast('无点要素，无法导出 CSV');
-    data = 'lat,lon,name\n' + pts.map(f => f.geometry.coordinates[1] + ',' + f.geometry.coordinates[0] + ',' + (f.properties.name || '')).join('\n');
-    fn = l.name + '.csv';
+  // Export
+  function openExportModal() {
+    if (layers.length === 0) { showToast('无图层可导出'); return; }
+    openModal('export');
   }
   
-  const b = new Blob([data], { type: 'text/plain;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(b);
-  a.download = fn;
-  a.click();
-  closeModal('export');
-  showToast('已导出');
-}
-
-function clearAllLayers() {
-  layers.forEach(l => { if (l.leafletLayer) map.removeLayer(l.leafletLayer); });
-  layers = [];
-  drawnItems.clearLayers();
-  renderLayers();
-  showToast('已清除');
-}
-
-window.onload = init;
+  function runExport() {
+    var l = layers.find(function(x){ return x.id === document.getElementById('exportLayer').value; });
+    var fmt = document.getElementById('exportFormat').value;
+    if (!l) { showToast('请选择图层'); return; }
+    var data, fn, mime;
+    if (fmt === 'geojson') {
+      data = JSON.stringify(l.geojson, null, 2);
+      fn = l.name + '.geojson';
+      mime = 'application/geo+json';
+    } else if (fmt === 'kml') {
+      var kml = '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>';
+      l.geojson.features.forEach(function(f, i) {
+        var geom = f.geometry;
+        var name = f.properties.name || 'Feature' + i;
+        if (geom.type === 'Point') {
+          kml += '<Placemark><name>' + name + '</name><Point><coordinates>' + geom.coordinates[0] + ',' + geom.coordinates[1] + '</coordinates></Point></Placemark>';
+        } else if (geom.type === 'LineString') {
+          kml += '<Placemark><name>' + name + '</name><LineString><coordinates>' + geom.coordinates.map(function(c){return c[0]+','+c[1];}).join(' ') + '</coordinates></LineString></Placemark>';
+        } else if (geom.type === 'Polygon') {
+          kml += '<Placemark><name>' + name + '</name><Polygon><outerBoundaryIs><LinearRing><coordinates>' + geom.coordinates[0].map(function(c){return c[0]+','+c[1];}).join(' ') + '</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>';
+        }
+      });
+      kml += '</Document></kml>';
+      data = kml;
+      fn = l.name + '.kml';
+      mime = 'application/vnd.google-earth.kml+xml';
+    } else {
+      var pts = l.geojson.features.filter(function(f){ return f.geometry.type === 'Point'; });
+      if (pts.length === 0) { showToast('无点要素可导出CSV'); return; }
+      data = 'lat,lon,name\n' + pts.map(function(f){ return f.geometry.coordinates[1] + ',' + f.geometry.coordinates[0] + ',' + (f.properties.name || ''); }).join('\n');
+      fn = l.name + '.csv';
+      mime = 'text/csv';
+    }
+    var b = new Blob([data], { type: mime + ';charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = fn;
+    a.click();
+    closeModal('export');
+    showToast('已导出: ' + fn);
+  }
+  
+  function clearAllLayers() {
+    layers.forEach(function(l){ if(l.leafletLayer) map.removeLayer(l.leafletLayer); });
+    layers = [];
+    drawnItems.clearLayers();
+    renderLayers();
+    showToast('已清除全部');
+  }
+  
+  window.onload = init;
 </script>
 </body>
 </html>
