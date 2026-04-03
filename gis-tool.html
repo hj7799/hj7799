@@ -666,52 +666,115 @@ function importFile(file) {
   const reader = new FileReader();
   
   reader.onload = function(e) {
-    const content = e.target.result;
+    let content = e.target.result;
+    let geojson = null;
     
-    if (ext === 'json' || ext === 'geojson') {
-      try {
-        const geojson = JSON.parse(content);
+    try {
+      if (ext === 'json' || ext === 'geojson') {
+        const data = JSON.parse(content);
+        
+        // 支持多种格式
+        if (data.type === 'FeatureCollection') {
+          geojson = data;
+        } else if (data.type === 'Feature') {
+          geojson = { type: 'FeatureCollection', features: [data] };
+        } else if (data.type === 'Point' || data.type === 'LineString' || data.type === 'Polygon' || 
+                   data.type === 'MultiPoint' || data.type === 'MultiLineString' || data.type === 'MultiPolygon') {
+          geojson = { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: data, properties: {} }] };
+        } else if (Array.isArray(data)) {
+          // 可能是 features 数组
+          geojson = { type: 'FeatureCollection', features: data };
+        } else if (data.features) {
+          geojson = { type: 'FeatureCollection', features: data.features };
+        } else {
+          showToast('不支持的 JSON 格式');
+          return;
+        }
+        
+        // 验证 features
+        if (!geojson.features || !Array.isArray(geojson.features)) {
+          showToast('GeoJSON 缺少 features 数组');
+          return;
+        }
+        
+        // 过滤无效要素
+        geojson.features = geojson.features.filter(f => f && f.geometry && f.geometry.type && f.geometry.coordinates);
+        
+        if (geojson.features.length === 0) {
+          showToast('没有有效的地理要素');
+          return;
+        }
+        
         const ll = L.geoJSON(geojson, {
           style: { color: '#00d4aa', fillColor: '#00d4aa', fillOpacity: 0.3 },
           pointToLayer: (f, latlng) => L.marker(latlng)
         }).addTo(map);
-        map.fitBounds(ll.getBounds());
+        
+        if (ll.getLayers().length > 0) {
+          map.fitBounds(ll.getBounds());
+        }
         addLayer(file.name, geojson, '#00d4aa', ll);
-        showToast(`已导入: ${file.name}`);
-      } catch (err) {
-        showToast('GeoJSON 解析失败');
+        showToast(`已导入 ${geojson.features.length} 个要素`);
       }
-    }
-    else if (ext === 'kml') {
-      const parser = new DOMParser();
-      const kml = parser.parseFromString(content, 'text/xml');
-      const geojson = toGeoJSON.kml(kml);
-      const ll = L.geoJSON(geojson, {
-        style: { color: '#00d4aa', fillColor: '#00d4aa', fillOpacity: 0.3 }
-      }).addTo(map);
-      map.fitBounds(ll.getBounds());
-      addLayer(file.name, geojson, '#00d4aa', ll);
-      showToast(`已导入 KML: ${file.name}`);
-    }
-    else if (ext === 'zip') {
-      shp(content).then(geojson => {
+      else if (ext === 'kml') {
+        const parser = new DOMParser();
+        const kml = parser.parseFromString(content, 'text/xml');
+        geojson = toGeoJSON.kml(kml);
+        
+        if (!geojson || !geojson.features || geojson.features.length === 0) {
+          showToast('KML 文件没有地理要素');
+          return;
+        }
+        
         const ll = L.geoJSON(geojson, {
           style: { color: '#00d4aa', fillColor: '#00d4aa', fillOpacity: 0.3 }
         }).addTo(map);
         map.fitBounds(ll.getBounds());
         addLayer(file.name, geojson, '#00d4aa', ll);
-        showToast(`已导入 Shapefile: ${file.name}`);
-      }).catch(() => showToast('Shapefile 解析失败'));
+        showToast(`已导入 KML: ${geojson.features.length} 个要素`);
+      }
+      else if (ext === 'zip') {
+        shp(content).then(geojson => {
+          if (!geojson || (Array.isArray(geojson) && geojson.length === 0)) {
+            showToast('Shapefile 没有地理要素');
+            return;
+          }
+          
+          // shp 可能返回数组或单个对象
+          if (Array.isArray(geojson)) {
+            geojson = { type: 'FeatureCollection', features: geojson.flatMap(g => g.features || [g]) };
+          } else if (!geojson.type) {
+            geojson = { type: 'FeatureCollection', features: [geojson] };
+          }
+          
+          const ll = L.geoJSON(geojson, {
+            style: { color: '#00d4aa', fillColor: '#00d4aa', fillOpacity: 0.3 }
+          }).addTo(map);
+          map.fitBounds(ll.getBounds());
+          addLayer(file.name, geojson, '#00d4aa', ll);
+          showToast(`已导入 Shapefile: ${geojson.features.length} 个要素`);
+        }).catch(err => {
+          console.error(err);
+          showToast('Shapefile 解析失败，请确保是 .zip 格式');
+        });
+      }
+      else {
+        showToast('不支持此文件格式，请使用 .geojson, .json, .kml 或 .zip');
+      }
+    } catch (err) {
+      console.error('Import error:', err);
+      showToast('文件解析失败: ' + err.message);
     }
-    else {
-      showToast('不支持的文件格式');
-    }
+  };
+  
+  reader.onerror = function() {
+    showToast('文件读取失败');
   };
   
   if (ext === 'zip') {
     reader.readAsArrayBuffer(file);
   } else {
-    reader.readAsText(file);
+    reader.readAsText(file, 'UTF-8');
   }
 }
 
